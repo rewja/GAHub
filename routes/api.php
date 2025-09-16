@@ -39,15 +39,19 @@ Route::middleware('auth:sanctum')->get('/me', [UserController::class, 'me']);
 Route::middleware(['auth:sanctum', 'role:user'])->prefix('todos')->group(function () {
     Route::get('/', [TodoController::class, 'index']);            // list own todos
     Route::post('/', [TodoController::class, 'store']);           // create todo
-    Route::patch('/{id}', [TodoController::class, 'update']);     // update todo
+    Route::put('/{id}', [TodoController::class, 'update']);       // update todo (full)
+    Route::patch('/{id}', [TodoController::class, 'update']);     // update todo (partial)
+    Route::patch('/{id}/start', [TodoController::class, 'start']); // start todo (not_started -> in_progress)
+    Route::patch('/{id}/submit', [TodoController::class, 'submitForChecking']); // submit for checking
     Route::delete('/{id}', [TodoController::class, 'destroy']);   // delete todo
 });
 
 // admin: manage all todos
 Route::middleware(['auth:sanctum', 'role:admin'])->prefix('todos')->group(function () {
     Route::get('/all', [TodoController::class, 'indexAll']);           // semua todos
-    Route::patch('/{id}/check', [TodoController::class, 'check']);     // approve/check
-    Route::patch('/{id}/note', [TodoController::class, 'addNote']);    // kasih catatan
+    Route::patch('/{id}/evaluate', [TodoController::class, 'evaluate']); // new evaluation endpoint
+    Route::get('/evaluate/{userId}', [TodoController::class, 'evaluateOverall']); // overall performance evaluation
+    // Removed legacy routes
 });
 
 // ---------------- REQUESTS ----------------
