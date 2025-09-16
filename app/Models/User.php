@@ -21,6 +21,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role', // 'user', 'admin/ga'
     ];
 
     /**
@@ -44,5 +45,28 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function requests()
+    {
+        return $this->hasMany(RequestItem::class);
+    }
+
+    // Relasi: User punya banyak Todo
+    public function todos()
+    {
+        return $this->hasMany(Todo::class);
+    }
+
+    // Relasi: User bisa booking Meeting
+    public function meetings()
+    {
+        return $this->hasMany(Meeting::class);
+    }
+
+    // User dengan role procurement/GA bisa punya banyak procurement
+    public function procurements()
+    {
+        return $this->hasMany(Procurement::class);
     }
 }
