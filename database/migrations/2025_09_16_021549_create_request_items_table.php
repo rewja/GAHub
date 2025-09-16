@@ -13,6 +13,12 @@ return new class extends Migration
     {
         Schema::create('request_items', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->string('item_name', 200);
+            $table->integer('quantity');
+            $table->text('reason')->nullable();
+            $table->enum('status', ['pending', 'approved', 'rejected', 'purchased'])->default('pending');
+            $table->text('ga_note')->nullable();
             $table->timestamps();
         });
     }

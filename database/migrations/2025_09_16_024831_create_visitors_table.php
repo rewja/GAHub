@@ -11,12 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('procurements', function (Blueprint $table) {
+        Schema::create('visitors', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('request_items_id')->constrained('request_items')->onDelete('cascade');
-            $table->foreignId('executed_by')->constrained('users')->onDelete('cascade');
-            $table->dateTime('purchase_date');
-            $table->decimal('amount', 12, 2);
+            $table->string('name', 100);
+            $table->string('company', 100)->nullable();
+            $table->string('id_number', 50)->nullable();
+            $table->text('purpose');
+            $table->string('person_to_meet', 100);
+            $table->dateTime('check_in');
+            $table->dateTime('check_out')->nullable();
             $table->text('notes')->nullable();
             $table->timestamps();
         });
@@ -27,6 +30,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('procurements');
+        Schema::dropIfExists('visitors');
     }
 };

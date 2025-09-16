@@ -9,6 +9,7 @@ use App\Http\Controllers\RequestItemController;
 use App\Http\Controllers\ProcurementController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\MeetingController;
+use App\Http\Controllers\VisitorController;
 
 /*
 |--------------------------------------------------------------------------
@@ -66,3 +67,13 @@ Route::middleware('auth:sanctum')->prefix('meetings')->group(function () {
     Route::patch('/{id}/end', [MeetingController::class, 'end']);
     Route::patch('/{id}/force-end', [MeetingController::class, 'forceEnd']);
 });
+
+// ---------------- VISITORS ----------------
+Route::middleware('auth:sanctum')->prefix('visitors')->group(function () {
+    Route::get('/', [VisitorController::class, 'index']);         // list semua tamu
+    Route::post('/', [VisitorController::class, 'store']);        // tambah data tamu masuk
+    Route::patch('/{id}/checkout', [VisitorController::class, 'checkout']); // update waktu keluar
+    Route::get('/{id}', [VisitorController::class, 'show']);      // detail tamu
+    Route::delete('/{id}', [VisitorController::class, 'destroy']); // hapus data tamu
+});
+

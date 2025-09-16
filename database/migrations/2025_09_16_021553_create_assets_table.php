@@ -13,6 +13,12 @@ return new class extends Migration
     {
         Schema::create('assets', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('request_items_id')->constrained('request_items')->onDelete('cascade');
+            $table->string('asset_code', 50)->unique();
+            $table->string('category', 100);
+            $table->enum('status', ['not_received', 'received', 'needs_repair', 'needs_replacement'])->default('not_received');
+            $table->dateTime('received_date')->nullable();
+            $table->text('notes')->nullable();
             $table->timestamps();
         });
     }
