@@ -7,59 +7,49 @@ use Illuminate\Http\Request;
 
 class RequestItemController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
+    // User: create request
     public function store(Request $request)
     {
-        //
+        $data = $request->validate([
+            'item_name' => 'required|string|max:200',
+            'quantity' => 'required|integer|min:1',
+            'reason' => 'nullable|string',
+        ]);
+
+        $data['user_id'] = $request->user()->id;
+
+        $req = RequestItem::create($data);
+
+        return response()->json(['message' => 'Request created successfully', 'request' => $req], 201);
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(RequestItem $requestItem)
+    // GA: list all requests
+    public function index()
     {
-        //
+        return response()->json(RequestItem::with('user')->get());
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(RequestItem $requestItem)
+    // GA: approve request
+    public function approve(Request $request, $id)
     {
-        //
+        $req = RequestItem::findOrFail($id);
+        $req->update([
+            'status' => 'approved',
+            'ga_note' => $request->ga_note ?? null,
+        ]);
+
+        return response()->json(['message' => 'Request approved', 'request' => $req]);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, RequestItem $requestItem)
+    // GA: reject request
+    public function reject(Request $request, $id)
     {
-        //
-    }
+        $req = RequestItem::findOrFail($id);
+        $req->update([
+            'status' => 'rejected',
+            'ga_note' => $request->ga_note ?? null,
+        ]);
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(RequestItem $requestItem)
-    {
-        //
+        return response()->json(['message' => 'Request rejected', 'request' => $req]);
     }
 }

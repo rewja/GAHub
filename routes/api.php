@@ -22,29 +22,32 @@ Route::prefix('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 });
 
-// ---------------- USERS (managed by GA) ----------------
-Route::middleware(['auth:sanctum', 'role:ga'])->prefix('users')->group(function () {
-    Route::get('/', [UserController::class, 'index']);      // list all users
-    Route::get('/{id}', [UserController::class, 'show']);   // detail user
-    Route::post('/', [UserController::class, 'store']);     // create user
-    Route::patch('/{id}', [UserController::class, 'update']); // update user
+// ---------------- USERS (managed by admin) ----------------
+Route::middleware(['auth:sanctum', 'role:admin'])->prefix('users')->group(function () {
+    Route::get('/', [UserController::class, 'index']);          // list all users
+    Route::get('/{id}', [UserController::class, 'show']);       // detail user
+    Route::post('/', [UserController::class, 'store']);         // create user
+    Route::patch('/{id}', [UserController::class, 'update']);   // update user
     Route::delete('/{id}', [UserController::class, 'destroy']); // delete user
 });
+
+// ---------------- USER PROFILE (self access) ----------------
+Route::middleware('auth:sanctum')->get('/me', [UserController::class, 'me']);
 
 // ---------------- TODOS ----------------
 // User: manage own todos
 Route::middleware(['auth:sanctum', 'role:user'])->prefix('todos')->group(function () {
-    Route::get('/', [TodoController::class, 'index']);        // list todos (user sendiri)
-    Route::post('/', [TodoController::class, 'store']);       // create todo
-    Route::patch('/{id}', [TodoController::class, 'update']); // update todo
-    Route::delete('/{id}', [TodoController::class, 'destroy']); // delete todo
+    Route::get('/', [TodoController::class, 'index']);            // list own todos
+    Route::post('/', [TodoController::class, 'store']);           // create todo
+    Route::patch('/{id}', [TodoController::class, 'update']);     // update todo
+    Route::delete('/{id}', [TodoController::class, 'destroy']);   // delete todo
 });
 
-// GA: manage all todos
-Route::middleware(['auth:sanctum', 'role:ga'])->prefix('todos')->group(function () {
-    Route::get('/all', [TodoController::class, 'indexAll']);     // semua todos
-    Route::patch('/{id}/check', [TodoController::class, 'check']); // approve/check
-    Route::patch('/{id}/note', [TodoController::class, 'addNote']); // kasih catatan
+// admin: manage all todos
+Route::middleware(['auth:sanctum', 'role:admin'])->prefix('todos')->group(function () {
+    Route::get('/all', [TodoController::class, 'indexAll']);           // semua todos
+    Route::patch('/{id}/check', [TodoController::class, 'check']);     // approve/check
+    Route::patch('/{id}/note', [TodoController::class, 'addNote']);    // kasih catatan
 });
 
 // ---------------- REQUESTS ----------------
@@ -52,8 +55,8 @@ Route::middleware(['auth:sanctum', 'role:ga'])->prefix('todos')->group(function 
 Route::middleware(['auth:sanctum', 'role:user'])->prefix('requests')->group(function () {
     Route::post('/', [RequestItemController::class, 'store']);
 });
-// GA: manage requests
-Route::middleware(['auth:sanctum', 'role:ga'])->prefix('requests')->group(function () {
+// admin: manage requests
+Route::middleware(['auth:sanctum', 'role:admin'])->prefix('requests')->group(function () {
     Route::get('/', [RequestItemController::class, 'index']);
     Route::patch('/{id}/approve', [RequestItemController::class, 'approve']);
     Route::patch('/{id}/reject', [RequestItemController::class, 'reject']);
@@ -66,7 +69,7 @@ Route::middleware(['auth:sanctum', 'role:procurement'])->prefix('procurements')-
 });
 
 // ---------------- ASSETS ----------------
-Route::middleware(['auth:sanctum', 'role:ga'])->prefix('assets')->group(function () {
+Route::middleware(['auth:sanctum', 'role:admin'])->prefix('assets')->group(function () {
     Route::get('/', [AssetController::class, 'index']);
     Route::post('/', [AssetController::class, 'store']);
     Route::patch('/{id}/status', [AssetController::class, 'updateStatus']);
@@ -79,11 +82,11 @@ Route::middleware('auth:sanctum')->prefix('meetings')->group(function () {
     Route::post('/', [MeetingController::class, 'store']);
     Route::patch('/{id}/start', [MeetingController::class, 'start']);
     Route::patch('/{id}/end', [MeetingController::class, 'end']);
-    Route::patch('/{id}/force-end', [MeetingController::class, 'forceEnd'])->middleware('role:ga');
+    Route::patch('/{id}/force-end', [MeetingController::class, 'forceEnd'])->middleware('role:admin');
 });
 
 // ---------------- VISITORS ----------------
-Route::middleware(['auth:sanctum', 'role:ga'])->prefix('visitors')->group(function () {
+Route::middleware(['auth:sanctum', 'role:admin'])->prefix('visitors')->group(function () {
     Route::get('/', [VisitorController::class, 'index']);
     Route::post('/', [VisitorController::class, 'store']);
 });

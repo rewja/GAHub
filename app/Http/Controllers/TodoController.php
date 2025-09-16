@@ -7,59 +7,81 @@ use Illuminate\Http\Request;
 
 class TodoController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    // User: list own todos
+    public function index(Request $request)
     {
-        //
+        return response()->json($request->user()->todos);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
+    // User: create todo
     public function store(Request $request)
     {
-        //
+        $data = $request->validate([
+            'title' => 'required|string|max:150',
+            'description' => 'nullable|string',
+            'due_date' => 'nullable|date'
+        ]);
+
+        $data['user_id'] = $request->user()->id;
+
+        $todo = Todo::create($data);
+
+        return response()->json(['message' => 'Todo created successfully', 'todo' => $todo], 201);
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Todo $todo)
+    // User: update own todo
+    public function update(Request $request, $id)
     {
-        //
+        $todo = Todo::where('user_id', $request->user()->id)->findOrFail($id);
+
+        $data = $request->validate([
+            'title' => 'sometimes|string|max:150',
+            'description' => 'nullable|string',
+            'status' => 'sometimes|in:pending,in_progress,done',
+            'due_date' => 'nullable|date'
+        ]);
+
+        $todo->update($data);
+
+        return response()->json(['message' => 'Todo updated successfully', 'todo' => $todo]);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Todo $todo)
+    // User: delete own todo
+    public function destroy(Request $request, $id)
     {
-        //
+        $todo = Todo::where('user_id', $request->user()->id)->findOrFail($id);
+        $todo->delete();
+
+        return response()->json(['message' => 'Todo deleted successfully']);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Todo $todo)
+    // GA: list all todos
+    public function indexAll()
     {
-        //
+        return response()->json(Todo::with('user')->get());
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Todo $todo)
+    // GA: mark todo as checked
+    public function check(Request $request, $id)
     {
-        //
+        $todo = Todo::findOrFail($id);
+
+        $todo->update([
+            'status' => 'checked',
+            'checked_by' => $request->user()->id,
+        ]);
+
+        return response()->json(['message' => 'Todo checked successfully', 'todo' => $todo]);
+    }
+
+    // GA: add note
+    public function addNote(Request $request, $id)
+    {
+        $todo = Todo::findOrFail($id);
+
+        $request->validate(['notes' => 'required|string']);
+        $todo->update(['notes' => $request->notes]);
+
+        return response()->json(['message' => 'Note added successfully', 'todo' => $todo]);
     }
 }
