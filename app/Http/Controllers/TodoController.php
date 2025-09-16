@@ -19,10 +19,17 @@ class TodoController extends Controller
         $data = $request->validate([
             'title' => 'required|string|max:150',
             'description' => 'nullable|string',
-            'due_date' => 'nullable|date'
+            'due_date' => 'nullable|date',
+            'evidence' => 'nullable|image|max:2048'
         ]);
 
         $data['user_id'] = $request->user()->id;
+
+        // handle evidence upload if provided
+        if ($request->hasFile('evidence')) {
+            $path = $request->file('evidence')->store('evidence', 'public');
+            $data['evidence_path'] = $path;
+        }
 
         $todo = Todo::create($data);
 
@@ -37,9 +44,15 @@ class TodoController extends Controller
         $data = $request->validate([
             'title' => 'sometimes|string|max:150',
             'description' => 'nullable|string',
-            'status' => 'sometimes|in:pending,in_progress,done',
-            'due_date' => 'nullable|date'
+            'status' => 'sometimes|in:pending,in_progress,done,checked',
+            'due_date' => 'nullable|date',
+            'evidence' => 'nullable|image|max:2048'
         ]);
+
+        if ($request->hasFile('evidence')) {
+            $path = $request->file('evidence')->store('evidence', 'public');
+            $data['evidence_path'] = $path;
+        }
 
         $todo->update($data);
 

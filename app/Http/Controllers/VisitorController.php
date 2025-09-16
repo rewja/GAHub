@@ -7,12 +7,10 @@ use Illuminate\Http\Request;
 
 class VisitorController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
+    // List all visitors (admin)
     public function index()
     {
-        //
+        return response()->json(Visitor::latest()->get());
     }
 
     /**
@@ -28,7 +26,25 @@ class VisitorController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $data = $request->validate([
+            'name' => 'required|string|max:100',
+            'company' => 'nullable|string|max:100',
+            'id_number' => 'nullable|string|max:50',
+            'purpose' => 'required|string',
+            'person_to_meet' => 'required|string|max:100',
+            'photo' => 'nullable|image|max:4096',
+            'check_in' => 'required|date',
+            'check_out' => 'nullable|date|after:check_in',
+            'notes' => 'nullable|string',
+        ]);
+
+        if ($request->hasFile('photo')) {
+            $data['photo_path'] = $request->file('photo')->store('visitors', 'public');
+        }
+
+        $visitor = Visitor::create($data);
+
+        return response()->json(['message' => 'Visitor registered', 'visitor' => $visitor], 201);
     }
 
     /**

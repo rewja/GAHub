@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Procurement;
+use App\Models\RequestItem;
 use Illuminate\Http\Request;
 
 class ProcurementController extends Controller
@@ -12,7 +13,9 @@ class ProcurementController extends Controller
      */
     public function index()
     {
-        //
+        $procurements = Procurement::with(['request', 'user'])->latest()->get();
+
+        return response()->json($procurements);
     }
 
     /**
@@ -28,7 +31,24 @@ class ProcurementController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $data = $request->validate([
+            'request_items_id' => 'required|exists:request_items,id',
+            'purchase_date' => 'required|date',
+            'amount' => 'required|numeric|min:0',
+            'notes' => 'nullable|string',
+        ]);
+
+        $data['executed_by'] = $request->user()->id;
+
+        $procurement = Procurement::create($data);
+
+        // Update related request status to purchased if currently approved
+        $req = RequestItem::find($data['request_items_id']);
+        if ($req && $req->status !== 'purchased') {
+            $req->update(['status' => 'purchased']);
+        }
+
+        return response()->json(['message' => 'Procurement recorded', 'procurement' => $procurement], 201);
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Asset;
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 
 class AssetController extends Controller
@@ -12,7 +13,8 @@ class AssetController extends Controller
      */
     public function index()
     {
-        //
+        $assets = Asset::with(['request', 'procurement'])->latest()->get();
+        return response()->json($assets);
     }
 
     /**
@@ -28,7 +30,19 @@ class AssetController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $data = $request->validate([
+            'request_items_id' => 'required|exists:request_items,id',
+            'category' => 'required|string|max:100',
+            'location' => 'nullable|string|max:150',
+            'notes' => 'nullable|string',
+        ]);
+
+        // simple asset code generator
+        $data['asset_code'] = 'AST-' . Str::upper(Str::random(8));
+
+        $asset = Asset::create($data);
+
+        return response()->json(['message' => 'Asset created', 'asset' => $asset], 201);
     }
 
     /**
@@ -50,9 +64,19 @@ class AssetController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Asset $asset)
+    public function updateStatus(Request $request, $id)
     {
-        //
+        $asset = Asset::findOrFail($id);
+
+        $data = $request->validate([
+            'status' => 'required|in:not_received,received,needs_repair,needs_replacement',
+            'received_date' => 'nullable|date',
+            'notes' => 'nullable|string',
+        ]);
+
+        $asset->update($data);
+
+        return response()->json(['message' => 'Asset updated', 'asset' => $asset]);
     }
 
     /**

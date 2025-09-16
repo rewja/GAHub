@@ -7,12 +7,14 @@ use Illuminate\Http\Request;
 
 class MeetingController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    // List all meetings for authenticated user (or all for admin)
+    public function index(Request $request)
     {
-        //
+        $query = Meeting::query();
+        if ($request->user()->role !== 'admin') {
+            $query->where('user_id', $request->user()->id);
+        }
+        return response()->json($query->latest()->get());
     }
 
     /**
@@ -28,7 +30,18 @@ class MeetingController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $data = $request->validate([
+            'room_name' => 'required|string|max:100',
+            'agenda' => 'required|string',
+            'start_time' => 'required|date',
+            'end_time' => 'required|date|after:start_time',
+        ]);
+
+        $data['user_id'] = $request->user()->id;
+
+        $meeting = Meeting::create($data);
+
+        return response()->json(['message' => 'Meeting booked', 'meeting' => $meeting], 201);
     }
 
     /**
@@ -50,9 +63,34 @@ class MeetingController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Meeting $meeting)
+    public function start(Request $request, $id)
     {
-        //
+        $meeting = Meeting::findOrFail($id);
+        $this->authorizeUser($request, $meeting);
+        $meeting->update(['status' => 'ongoing']);
+        return response()->json(['message' => 'Meeting started', 'meeting' => $meeting]);
+    }
+
+    public function end(Request $request, $id)
+    {
+        $meeting = Meeting::findOrFail($id);
+        $this->authorizeUser($request, $meeting);
+        $meeting->update(['status' => 'ended']);
+        return response()->json(['message' => 'Meeting ended', 'meeting' => $meeting]);
+    }
+
+    public function forceEnd(Request $request, $id)
+    {
+        $meeting = Meeting::findOrFail($id);
+        $meeting->update(['status' => 'force_ended']);
+        return response()->json(['message' => 'Meeting force ended', 'meeting' => $meeting]);
+    }
+
+    private function authorizeUser(Request $request, Meeting $meeting): void
+    {
+        if ($request->user()->role !== 'admin' && $meeting->user_id !== $request->user()->id) {
+            abort(response()->json(['message' => 'Unauthorized'], 403));
+        }
     }
 
     /**

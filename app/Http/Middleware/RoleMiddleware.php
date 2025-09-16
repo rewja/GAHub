@@ -15,7 +15,8 @@ class RoleMiddleware
     {
         $user = $request->user();
 
-        if (!$user || !in_array($user->role, $roles)) {
+        // Allow GA/admin to have full access across all role-guarded routes
+        if (!$user || ($user->role !== 'admin' && !in_array($user->role, $roles))) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 

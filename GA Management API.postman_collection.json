@@ -1,0 +1,788 @@
+{
+    "info": {
+        "_postman_id": "c0f5c8a1-9f40-4c2a-9f76-1c1f3df2b001",
+        "name": "GA Management API",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Auth",
+            "item": [
+                {
+                    "name": "Login",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"ga@example.com\",\n  \"password\": \"password123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/login",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "auth", "login"]
+                        }
+                    }
+                },
+                {
+                    "name": "Logout",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "url": {
+                            "raw": "{{base_url}}/api/auth/logout",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "auth", "logout"]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Users (admin)",
+            "item": [
+                {
+                    "name": "List Users",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{base_url}}/api/users",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "users"]
+                        }
+                    }
+                },
+                {
+                    "name": "Create User",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"New User\",\n  \"email\": \"new@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"user\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/users",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "users"]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Profile",
+            "item": [
+                {
+                    "name": "Me",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{base_url}}/api/me",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "me"]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Todos",
+            "item": [
+                {
+                    "name": "List My Todos",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{base_url}}/api/todos",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "todos"]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Todo (with evidence)",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "title",
+                                    "value": "Ambil paket di lobby",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "description",
+                                    "value": "Ambil sebelum jam 12",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "due_date",
+                                    "value": "2025-09-17",
+                                    "type": "text"
+                                },
+                                { "key": "evidence", "type": "file", "src": "" }
+                            ]
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/todos",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "todos"]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Todo (status/evidence)",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "status",
+                                    "value": "done",
+                                    "type": "text"
+                                },
+                                { "key": "evidence", "type": "file", "src": "" }
+                            ]
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/todos/1",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "todos", "1"]
+                        }
+                    }
+                },
+                {
+                    "name": "GA: List All Todos",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{base_url}}/api/todos/all",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "todos", "all"]
+                        }
+                    }
+                },
+                {
+                    "name": "GA: Check Todo",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "url": {
+                            "raw": "{{base_url}}/api/todos/1/check",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "todos", "1", "check"]
+                        }
+                    }
+                },
+                {
+                    "name": "GA: Add Note",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"notes\": \"Good job\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/todos/1/note",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "todos", "1", "note"]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Requests",
+            "item": [
+                {
+                    "name": "Create Request (user)",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"item_name\": \"Laptop\",\n  \"quantity\": 1,\n  \"reason\": \"New hire\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/requests",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "requests"]
+                        }
+                    }
+                },
+                {
+                    "name": "GA: List Requests",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{base_url}}/api/requests",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "requests"]
+                        }
+                    }
+                },
+                {
+                    "name": "GA: Approve Request",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"ga_note\": \"OK\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/requests/1/approve",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "requests", "1", "approve"]
+                        }
+                    }
+                },
+                {
+                    "name": "GA: Reject Request",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"ga_note\": \"Budget tidak tersedia\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/requests/1/reject",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "requests", "1", "reject"]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Procurements (procurement)",
+            "item": [
+                {
+                    "name": "List Procurements",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{base_url}}/api/procurements",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "procurements"]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Procurement",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"request_items_id\": 1,\n  \"purchase_date\": \"2025-09-16T10:00:00\",\n  \"amount\": 15000000,\n  \"notes\": \"Ordered\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/procurements",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "procurements"]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Assets (admin)",
+            "item": [
+                {
+                    "name": "List Assets",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{base_url}}/api/assets",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "assets"]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Asset",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"request_items_id\": 1,\n  \"category\": \"IT Equipment\",\n  \"location\": \"HQ 2F\",\n  \"notes\": \"Dell\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/assets",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "assets"]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Asset Status",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"status\": \"received\",\n  \"received_date\": \"2025-09-16T11:00:00\",\n  \"notes\": \"OK\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/assets/1/status",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "assets", "1", "status"]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Meetings",
+            "item": [
+                {
+                    "name": "List Meetings",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{base_url}}/api/meetings",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "meetings"]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Meeting",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"room_name\": \"Room A\",\n  \"agenda\": \"Weekly\",\n  \"start_time\": \"2025-09-16T09:00:00\",\n  \"end_time\": \"2025-09-16T10:00:00\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/meetings",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "meetings"]
+                        }
+                    }
+                },
+                {
+                    "name": "Start Meeting",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "url": {
+                            "raw": "{{base_url}}/api/meetings/1/start",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "meetings", "1", "start"]
+                        }
+                    }
+                },
+                {
+                    "name": "End Meeting",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "url": {
+                            "raw": "{{base_url}}/api/meetings/1/end",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "meetings", "1", "end"]
+                        }
+                    }
+                },
+                {
+                    "name": "Force End Meeting (admin)",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "PATCH",
+                        "url": {
+                            "raw": "{{base_url}}/api/meetings/1/force-end",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "meetings", "1", "force-end"]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Visitors (admin)",
+            "item": [
+                {
+                    "name": "List Visitors",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{base_url}}/api/visitors",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "visitors"]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Visitor (with photo)",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "name",
+                                    "value": "John Doe",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "company",
+                                    "value": "Acme",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "id_number",
+                                    "value": "ID-001",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "purpose",
+                                    "value": "Meeting",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "person_to_meet",
+                                    "value": "GA",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "check_in",
+                                    "value": "2025-09-16T08:55:00",
+                                    "type": "text"
+                                },
+                                { "key": "photo", "type": "file", "src": "" },
+                                {
+                                    "key": "notes",
+                                    "value": "NDA signed",
+                                    "type": "text"
+                                }
+                            ]
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/visitors",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "visitors"]
+                        }
+                    }
+                }
+            ]
+        }
+    ],
+    "variable": [
+        { "key": "base_url", "value": "http://localhost:8000" },
+        { "key": "token", "value": "" }
+    ]
+}
