@@ -6,12 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class RequestItem extends Model
 {
-    protected $fillable = [
-        'user_id',
-        'item_name',
-        'quantity',
-        'status', // pending, approved, rejected
-    ];
+    protected $guarded = [];
+
 
     // Relasi: Request dimiliki oleh User
     public function user()

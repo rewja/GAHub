@@ -6,14 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Procurement extends Model
 {
-    protected $fillable = [
-        'request_id',
-        'user_id',
-        'total_price',
-        'purchase_date',
-        'status',
-        'notes'
-    ];
+    protected $guarded = [];
+
 
     // Relasi: Procurement milik Request
     public function request()

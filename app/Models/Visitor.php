@@ -6,12 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Visitor extends Model
 {
-    protected $fillable = [
-        'meeting_id',
-        'name',
-        'organization',
-        'notes'
-    ];
+    protected $guarded = [];
+
 
     // Relasi: Guest hadir di Meeting
     public function meeting()
