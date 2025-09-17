@@ -1,7 +1,7 @@
 {
     "info": {
         "_postman_id": "5ad1ad8c-3b5a-4b44-9a7f-integrated-ga",
-        "name": "Integrated GA Management API - FIXED",
+        "name": "Integrated GA Management API - FIXED PRO",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "item": [
@@ -282,7 +282,7 @@
                             }
                         },
                         {
-                            "name": "Update (PUT, form-data; evidence allowed in checking)",
+                            "name": "Update Text (POST + _method=PUT, pre-checking only)",
                             "request": {
                                 "auth": {
                                     "type": "bearer",
@@ -294,10 +294,15 @@
                                         }
                                     ]
                                 },
-                                "method": "PUT",
+                                "method": "POST",
                                 "body": {
                                     "mode": "formdata",
                                     "formdata": [
+                                        {
+                                            "key": "_method",
+                                            "value": "PUT",
+                                            "type": "text"
+                                        },
                                         {
                                             "key": "title",
                                             "value": "Ambil paket (revisi)",
@@ -317,11 +322,6 @@
                                             "key": "scheduled_date",
                                             "value": "2025-09-19",
                                             "type": "text"
-                                        },
-                                        {
-                                            "key": "evidence",
-                                            "type": "file",
-                                            "src": ""
                                         }
                                     ]
                                 },
@@ -450,6 +450,42 @@
                                     ]
                                 },
                                 "method": "DELETE",
+                                "url": {
+                                    "raw": "{{base_url}}/api/todos/{{todo_id}}",
+                                    "host": ["{{base_url}}"],
+                                    "path": ["api", "todos", "{{todo_id}}"]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Update Evidence (POST + _method=PUT, checking only)",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "POST",
+                                "body": {
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "_method",
+                                            "value": "PUT",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "evidence",
+                                            "type": "file",
+                                            "src": ""
+                                        }
+                                    ]
+                                },
                                 "url": {
                                     "raw": "{{base_url}}/api/todos/{{todo_id}}",
                                     "host": ["{{base_url}}"],
@@ -643,7 +679,7 @@
                     "name": "GA Review (admin/ga)",
                     "item": [
                         {
-                            "name": "List All",
+                            "name": "List All (optional ?user_id)",
                             "request": {
                                 "auth": {
                                     "type": "bearer",
@@ -657,14 +693,46 @@
                                 },
                                 "method": "GET",
                                 "url": {
-                                    "raw": "{{base_url}}/api/todos/all",
+                                    "raw": "{{base_url}}/api/todos/all?user_id={{user_id}}",
                                     "host": ["{{base_url}}"],
-                                    "path": ["api", "todos", "all"]
+                                    "path": ["api", "todos", "all"],
+                                    "query": [
+                                        {
+                                            "key": "user_id",
+                                            "value": "{{user_id}}"
+                                        }
+                                    ]
                                 }
                             }
                         },
                         {
-                            "name": "Evaluate Approve (-> completed)",
+                            "name": "List by User",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{base_url}}/api/todos/user/{{user_id}}",
+                                    "host": ["{{base_url}}"],
+                                    "path": [
+                                        "api",
+                                        "todos",
+                                        "user",
+                                        "{{user_id}}"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Evaluate Approve",
                             "request": {
                                 "auth": {
                                     "type": "bearer",
@@ -685,7 +753,7 @@
                                 ],
                                 "body": {
                                     "mode": "raw",
-                                    "raw": "{\n  \"action\": \"approve\",\n  \"type\": \"individual\",\n  \"notes\": \"OK\"\n}"
+                                    "raw": "{\n  \"action\": \"approve\",\n  \"type\": \"individual\",\n  \"notes\": \"Good job\"\n}"
                                 },
                                 "url": {
                                     "raw": "{{base_url}}/api/todos/{{todo_id}}/evaluate",
@@ -700,7 +768,7 @@
                             }
                         },
                         {
-                            "name": "Evaluate Approve (without notes)",
+                            "name": "Evaluate Rework",
                             "request": {
                                 "auth": {
                                     "type": "bearer",
@@ -721,43 +789,7 @@
                                 ],
                                 "body": {
                                     "mode": "raw",
-                                    "raw": "{\n  \"action\": \"approve\",\n  \"type\": \"individual\"\n}"
-                                },
-                                "url": {
-                                    "raw": "{{base_url}}/api/todos/{{todo_id}}/evaluate",
-                                    "host": ["{{base_url}}"],
-                                    "path": [
-                                        "api",
-                                        "todos",
-                                        "{{todo_id}}",
-                                        "evaluate"
-                                    ]
-                                }
-                            }
-                        },
-                        {
-                            "name": "Evaluate Rework (-> evaluating)",
-                            "request": {
-                                "auth": {
-                                    "type": "bearer",
-                                    "bearer": [
-                                        {
-                                            "key": "token",
-                                            "value": "{{token}}",
-                                            "type": "string"
-                                        }
-                                    ]
-                                },
-                                "method": "PATCH",
-                                "header": [
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json"
-                                    }
-                                ],
-                                "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n  \"action\": \"rework\",\n  \"type\": \"individual\",\n  \"notes\": \"Perbaiki bukti foto\"\n}"
+                                    "raw": "{\n  \"action\": \"rework\",\n  \"type\": \"individual\",\n  \"notes\": \"Tolong perbaiki evidencenya\"\n}"
                                 },
                                 "url": {
                                     "raw": "{{base_url}}/api/todos/{{todo_id}}/evaluate",

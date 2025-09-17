@@ -69,15 +69,33 @@ class TodoController extends Controller
         return "ETD-{$seq}-{$safeUser}-{$day}-{$timePart}.{$ext}";
     }
 
-    private function getEvidenceFolder(Carbon $date): string
+    private function getEvidenceFolder(Carbon $date, string $userName = 'User'): string
     {
-        return 'evidence/' . $date->format('Y') . '/' . $date->format('m') . '/' . $date->format('d');
+        $safeUser = preg_replace('/[^A-Za-z0-9\- ]/', '', $userName ?: 'User');
+        return 'evidence/' . $date->format('Y') . '/' . $date->format('m') . '/' . $date->format('d') . '/' . $safeUser;
     }
 
     // User: list own todos
     public function index(Request $request)
     {
         return response()->json($request->user()->todos);
+    }
+
+    // GA/Admin: list all todos (optional filter by user_id)
+    public function indexAll(Request $request)
+    {
+        $query = Todo::with('user')->latest();
+        if ($request->filled('user_id')) {
+            $query->where('user_id', $request->input('user_id'));
+        }
+        return TodoResource::collection($query->get());
+    }
+
+    // GA/Admin: list todos by specific user
+    public function indexByUser($userId)
+    {
+        $todos = Todo::with('user')->where('user_id', $userId)->latest()->get();
+        return TodoResource::collection($todos);
     }
 
     // User: create todo
@@ -108,20 +126,48 @@ class TodoController extends Controller
     {
         $todo = Todo::where('user_id', $request->user()->id)->findOrFail($id);
 
-        // Accept form-data text fields
+        $currentStatus = $todo->status;
+        // 1) After checking phase (evaluating/completed) => block any edits
+        if (in_array($currentStatus, ['evaluating', 'completed'])) {
+            return response()->json([
+                'message' => 'Todo can no longer be edited after the checking phase'
+            ], 422);
+        }
+
+        // 2) Before checking (not_started / in_progress) => allow ONLY text fields, evidence forbidden
+        if (in_array($currentStatus, ['not_started', 'in_progress'])) {
+            if ($request->hasFile('evidence')) {
+                return response()->json([
+                    'message' => 'Evidence can only be uploaded during the checking phase'
+                ], 422);
+            }
+
         $data = $request->validate([
             'title' => 'sometimes|string|max:150',
             'description' => 'nullable|string',
-            'status' => 'sometimes|in:not_started,in_progress,checking,evaluating,completed',
-            'due_date' => 'nullable|date',
-            'scheduled_date' => 'nullable|date|after_or_equal:today'
-        ]);
+                'due_date' => 'nullable|date',
+                'scheduled_date' => 'nullable|date|after_or_equal:today'
+            ]);
 
-        // Optional: allow evidence replacement only when currently in checking
-        if ($request->hasFile('evidence')) {
-            if ($todo->status !== 'checking') {
+            foreach (['title','description','due_date','scheduled_date'] as $key) {
+                if (array_key_exists($key, $data)) {
+                    $todo->$key = $data[$key];
+                }
+            }
+
+            $todo->save();
+
+            return response()->json([
+                'message' => 'Todo updated successfully',
+                'todo' => new TodoResource($todo->fresh())
+            ]);
+        }
+
+        // 3) During checking => allow evidence replacement ONLY (text changes ignored)
+        if ($currentStatus === 'checking') {
+            if (!$request->hasFile('evidence')) {
                 return response()->json([
-                    'message' => 'Evidence can only be changed during checking phase'
+                    'message' => 'Evidence file is required during checking to update'
                 ], 422);
             }
 
@@ -132,21 +178,31 @@ class TodoController extends Controller
             $file = $request->file('evidence');
             $ext = $file->getClientOriginalExtension();
             $now = Carbon::now();
-            $folder = $this->getEvidenceFolder($now);
+            $folder = $this->getEvidenceFolder($now, $request->user()->name);
             if (!Storage::disk('public')->exists($folder)) {
                 Storage::disk('public')->makeDirectory($folder, 0755, true);
             }
             $filename = $this->buildEvidenceFilename($request->user()->name, $request->user()->id, $ext, $now);
             $path = $file->storeAs($folder, $filename, 'public');
-            $data['evidence_path'] = $path;
+
+            // optionally delete old file (keep folder)
+            if ($todo->evidence_path && Storage::disk('public')->exists($todo->evidence_path)) {
+                try { Storage::disk('public')->delete($todo->evidence_path); } catch (\Throwable $e) { /* ignore */ }
+            }
+
+            $todo->evidence_path = $path;
+            $todo->save();
+
+            return response()->json([
+                'message' => 'Evidence updated successfully',
+                'todo' => new TodoResource($todo->fresh())
+            ]);
         }
 
-        $todo->update($data);
-
+        // Fallback (should not reach)
         return response()->json([
-            'message' => 'Todo updated successfully',
-            'todo' => new TodoResource($todo)
-        ]);
+            'message' => 'No changes applied'
+        ], 200);
     }
 
     // User: start a todo (transition not_started -> in_progress)
@@ -179,7 +235,7 @@ class TodoController extends Controller
 
         $path = null;
         $now = Carbon::now();
-        $folder = $this->getEvidenceFolder($now);
+        $folder = $this->getEvidenceFolder($now, $request->user()->name);
         if (!Storage::disk('public')->exists($folder)) {
             Storage::disk('public')->makeDirectory($folder, 0755, true);
         }
@@ -277,7 +333,7 @@ class TodoController extends Controller
 
             $path = $todo->evidence_path;
             $now = Carbon::now();
-            $folder = $this->getEvidenceFolder($now);
+            $folder = $this->getEvidenceFolder($now, $request->user()->name);
             if (!Storage::disk('public')->exists($folder)) {
                 Storage::disk('public')->makeDirectory($folder, 0755, true);
             }
@@ -344,6 +400,20 @@ class TodoController extends Controller
     public function destroy(Request $request, $id)
     {
         $todo = Todo::where('user_id', $request->user()->id)->findOrFail($id);
+
+        // Delete evidence file if exists (safe)
+        if ($todo->evidence_path && Storage::disk('public')->exists($todo->evidence_path)) {
+            try {
+                Storage::disk('public')->delete($todo->evidence_path);
+            } catch (\Throwable $e) {
+                Log::warning('Failed to delete evidence file on todo delete', [
+                    'todo_id' => $todo->id,
+                    'path' => $todo->evidence_path,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+
         $todo->delete();
 
         return response()->json(['message' => 'Todo deleted successfully']);

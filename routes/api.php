@@ -42,6 +42,7 @@ Route::middleware(['auth:sanctum', 'role:user'])->prefix('todos')->group(functio
     Route::post('/', [TodoController::class, 'store']);                   // create todo
     Route::put('/{id}', [TodoController::class, 'update']);               // update todo (full)
     Route::patch('/{id}', [TodoController::class, 'update']);             // update todo (partial)
+    Route::post('/{id}', [TodoController::class, 'update']);              // update todo (form-data POST support)
     Route::patch('/{id}/start', [TodoController::class, 'start']);        // start todo (not_started -> in_progress)
 
     // FIXED: Use POST for file uploads - more reliable than PATCH/PUT
@@ -54,7 +55,8 @@ Route::middleware(['auth:sanctum', 'role:user'])->prefix('todos')->group(functio
 // Admin/GA: manage all todos - FIXED role permission
 Route::middleware(['auth:sanctum'])->prefix('todos')->group(function () {
     // Allow both admin and GA to access these routes
-    Route::get('/all', [TodoController::class, 'indexAll'])->middleware('role:admin,ga');
+    Route::get('/all', [TodoController::class, 'indexAll'])->middleware('role:admin,ga'); // ?user_id=ID optional
+    Route::get('/user/{userId}', [TodoController::class, 'indexByUser'])->middleware('role:admin,ga');
     Route::patch('/{id}/evaluate', [TodoController::class, 'evaluate'])->middleware('role:admin,ga');
     Route::get('/evaluate/{userId}', [TodoController::class, 'evaluateOverall'])->middleware('role:admin,ga');
 

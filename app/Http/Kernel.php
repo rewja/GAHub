@@ -41,6 +41,7 @@ class Kernel extends HttpKernel
         ],
 
         'api' => [
+            \App\Http\Middleware\ConvertMultipartPutToPost::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\LargeFileUploadMiddleware::class,
             \App\Http\Middleware\FileUploadMiddleware::class,
