@@ -1,7 +1,7 @@
 {
     "info": {
         "_postman_id": "5ad1ad8c-3b5a-4b44-9a7f-integrated-ga",
-        "name": "Integrated GA Management API",
+        "name": "Integrated GA Management API - FIXED",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "item": [
@@ -236,7 +236,7 @@
                             }
                         },
                         {
-                            "name": "Create (with evidence)",
+                            "name": "Create",
                             "request": {
                                 "auth": {
                                     "type": "bearer",
@@ -268,9 +268,9 @@
                                             "type": "text"
                                         },
                                         {
-                                            "key": "evidence",
-                                            "type": "file",
-                                            "src": ""
+                                            "key": "scheduled_date",
+                                            "value": "2025-09-18",
+                                            "type": "text"
                                         }
                                     ]
                                 },
@@ -282,7 +282,7 @@
                             }
                         },
                         {
-                            "name": "Update (PUT, full update)",
+                            "name": "Update (PUT, form-data; evidence allowed in checking)",
                             "request": {
                                 "auth": {
                                     "type": "bearer",
@@ -295,15 +295,35 @@
                                     ]
                                 },
                                 "method": "PUT",
-                                "header": [
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json"
-                                    }
-                                ],
                                 "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n  \"title\": \"Ambil paket (revisi)\",\n  \"description\": \"Ambil sebelum jam 11\",\n  \"due_date\": \"2025-09-18\"\n}"
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "title",
+                                            "value": "Ambil paket (revisi)",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "description",
+                                            "value": "Ambil sebelum jam 11",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "due_date",
+                                            "value": "2025-09-18",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "scheduled_date",
+                                            "value": "2025-09-19",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "evidence",
+                                            "type": "file",
+                                            "src": ""
+                                        }
+                                    ]
                                 },
                                 "url": {
                                     "raw": "{{base_url}}/api/todos/1",
@@ -313,7 +333,7 @@
                             }
                         },
                         {
-                            "name": "Submit for Checking (with evidence)",
+                            "name": "Start (not_started -> in_progress)",
                             "request": {
                                 "auth": {
                                     "type": "bearer",
@@ -326,20 +346,93 @@
                                     ]
                                 },
                                 "method": "PATCH",
+                                "url": {
+                                    "raw": "{{base_url}}/api/todos/{{todo_id}}/start",
+                                    "host": ["{{base_url}}"],
+                                    "path": [
+                                        "api",
+                                        "todos",
+                                        "{{todo_id}}",
+                                        "start"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Submit for Checking (FIXED - POST)",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "POST",
+                                "header": [],
                                 "body": {
                                     "mode": "formdata",
                                     "formdata": [
                                         {
                                             "key": "evidence",
                                             "type": "file",
-                                            "src": ""
+                                            "src": []
                                         }
                                     ]
                                 },
                                 "url": {
-                                    "raw": "{{base_url}}/api/todos/1/submit",
+                                    "raw": "{{base_url}}/api/todos/{{todo_id}}/submit",
                                     "host": ["{{base_url}}"],
-                                    "path": ["api", "todos", "1", "submit"]
+                                    "path": [
+                                        "api",
+                                        "todos",
+                                        "{{todo_id}}",
+                                        "submit"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Submit Improvement (FIXED - POST)",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "POST",
+                                "body": {
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "evidence",
+                                            "type": "file",
+                                            "src": []
+                                        },
+                                        {
+                                            "key": "notes",
+                                            "value": "Sudah diperbaiki sesuai catatan",
+                                            "type": "text"
+                                        }
+                                    ]
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/todos/{{todo_id}}/improve",
+                                    "host": ["{{base_url}}"],
+                                    "path": [
+                                        "api",
+                                        "todos",
+                                        "{{todo_id}}",
+                                        "improve"
+                                    ]
                                 }
                             }
                         },
@@ -358,9 +451,9 @@
                                 },
                                 "method": "DELETE",
                                 "url": {
-                                    "raw": "{{base_url}}/api/todos/1",
+                                    "raw": "{{base_url}}/api/todos/{{todo_id}}",
                                     "host": ["{{base_url}}"],
-                                    "path": ["api", "todos", "1"]
+                                    "path": ["api", "todos", "{{todo_id}}"]
                                 }
                             }
                         }
@@ -384,14 +477,96 @@
                                 },
                                 "method": "PATCH",
                                 "url": {
-                                    "raw": "{{base_url}}/api/todos/1/start",
+                                    "raw": "{{base_url}}/api/todos/{{todo_id}}/start",
                                     "host": ["{{base_url}}"],
-                                    "path": ["api", "todos", "1", "start"]
+                                    "path": [
+                                        "api",
+                                        "todos",
+                                        "{{todo_id}}",
+                                        "start"
+                                    ]
                                 }
                             }
                         },
                         {
-                            "name": "Submit for Checking (in_progress -> checking)",
+                            "name": "Submit for Checking (in_progress -> checking) - FIXED",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "POST",
+                                "body": {
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "evidence",
+                                            "type": "file",
+                                            "src": []
+                                        }
+                                    ]
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/todos/{{todo_id}}/submit",
+                                    "host": ["{{base_url}}"],
+                                    "path": [
+                                        "api",
+                                        "todos",
+                                        "{{todo_id}}",
+                                        "submit"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Submit Improvement (evaluating -> checking) - FIXED",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "POST",
+                                "body": {
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "evidence",
+                                            "type": "file",
+                                            "src": []
+                                        },
+                                        {
+                                            "key": "notes",
+                                            "value": "Sudah diperbaiki sesuai catatan sebelumnya",
+                                            "type": "text"
+                                        }
+                                    ]
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/todos/{{todo_id}}/improve",
+                                    "host": ["{{base_url}}"],
+                                    "path": [
+                                        "api",
+                                        "todos",
+                                        "{{todo_id}}",
+                                        "improve"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Evaluate - Approve (checking -> completed)",
                             "request": {
                                 "auth": {
                                     "type": "bearer",
@@ -404,17 +579,68 @@
                                     ]
                                 },
                                 "method": "PATCH",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n  \"action\": \"approve\",\n  \"type\": \"individual\",\n  \"notes\": \"OK\"\n}"
+                                },
                                 "url": {
-                                    "raw": "{{base_url}}/api/todos/1/submit",
+                                    "raw": "{{base_url}}/api/todos/{{todo_id}}/evaluate",
                                     "host": ["{{base_url}}"],
-                                    "path": ["api", "todos", "1", "submit"]
+                                    "path": [
+                                        "api",
+                                        "todos",
+                                        "{{todo_id}}",
+                                        "evaluate"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Evaluate - Rework (checking -> evaluating)",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "PATCH",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n  \"action\": \"rework\",\n  \"type\": \"individual\",\n  \"notes\": \"Perbaiki bukti foto\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/todos/{{todo_id}}/evaluate",
+                                    "host": ["{{base_url}}"],
+                                    "path": [
+                                        "api",
+                                        "todos",
+                                        "{{todo_id}}",
+                                        "evaluate"
+                                    ]
                                 }
                             }
                         }
                     ]
                 },
                 {
-                    "name": "GA Review (admin)",
+                    "name": "GA Review (admin/ga)",
                     "item": [
                         {
                             "name": "List All",
@@ -462,14 +688,55 @@
                                     "raw": "{\n  \"action\": \"approve\",\n  \"type\": \"individual\",\n  \"notes\": \"OK\"\n}"
                                 },
                                 "url": {
-                                    "raw": "{{base_url}}/api/todos/1/evaluate",
+                                    "raw": "{{base_url}}/api/todos/{{todo_id}}/evaluate",
                                     "host": ["{{base_url}}"],
-                                    "path": ["api", "todos", "1", "evaluate"]
+                                    "path": [
+                                        "api",
+                                        "todos",
+                                        "{{todo_id}}",
+                                        "evaluate"
+                                    ]
                                 }
                             }
                         },
                         {
-                            "name": "Evaluate Rework (-> in_progress)",
+                            "name": "Evaluate Approve (without notes)",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "PATCH",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n  \"action\": \"approve\",\n  \"type\": \"individual\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/todos/{{todo_id}}/evaluate",
+                                    "host": ["{{base_url}}"],
+                                    "path": [
+                                        "api",
+                                        "todos",
+                                        "{{todo_id}}",
+                                        "evaluate"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Evaluate Rework (-> evaluating)",
                             "request": {
                                 "auth": {
                                     "type": "bearer",
@@ -493,9 +760,14 @@
                                     "raw": "{\n  \"action\": \"rework\",\n  \"type\": \"individual\",\n  \"notes\": \"Perbaiki bukti foto\"\n}"
                                 },
                                 "url": {
-                                    "raw": "{{base_url}}/api/todos/1/evaluate",
+                                    "raw": "{{base_url}}/api/todos/{{todo_id}}/evaluate",
                                     "host": ["{{base_url}}"],
-                                    "path": ["api", "todos", "1", "evaluate"]
+                                    "path": [
+                                        "api",
+                                        "todos",
+                                        "{{todo_id}}",
+                                        "evaluate"
+                                    ]
                                 }
                             }
                         },
@@ -514,9 +786,14 @@
                                 },
                                 "method": "GET",
                                 "url": {
-                                    "raw": "{{base_url}}/api/todos/evaluate/1",
+                                    "raw": "{{base_url}}/api/todos/evaluate/{{user_id}}",
                                     "host": ["{{base_url}}"],
-                                    "path": ["api", "todos", "evaluate", "1"]
+                                    "path": [
+                                        "api",
+                                        "todos",
+                                        "evaluate",
+                                        "{{user_id}}"
+                                    ]
                                 }
                             }
                         }
@@ -604,9 +881,14 @@
                             "raw": "{\n  \"ga_note\": \"OK\"\n}"
                         },
                         "url": {
-                            "raw": "{{base_url}}/api/requests/1/approve",
+                            "raw": "{{base_url}}/api/requests/{{request_id}}/approve",
                             "host": ["{{base_url}}"],
-                            "path": ["api", "requests", "1", "approve"]
+                            "path": [
+                                "api",
+                                "requests",
+                                "{{request_id}}",
+                                "approve"
+                            ]
                         }
                     }
                 },
@@ -635,9 +917,14 @@
                             "raw": "{\n  \"ga_note\": \"Budget tidak tersedia\"\n}"
                         },
                         "url": {
-                            "raw": "{{base_url}}/api/requests/1/reject",
+                            "raw": "{{base_url}}/api/requests/{{request_id}}/reject",
                             "host": ["{{base_url}}"],
-                            "path": ["api", "requests", "1", "reject"]
+                            "path": [
+                                "api",
+                                "requests",
+                                "{{request_id}}",
+                                "reject"
+                            ]
                         }
                     }
                 }
@@ -780,9 +1067,9 @@
                             "raw": "{\n  \"status\": \"received\",\n  \"received_date\": \"2025-09-16T11:00:00\",\n  \"notes\": \"OK\"\n}"
                         },
                         "url": {
-                            "raw": "{{base_url}}/api/assets/1/status",
+                            "raw": "{{base_url}}/api/assets/{{asset_id}}/status",
                             "host": ["{{base_url}}"],
-                            "path": ["api", "assets", "1", "status"]
+                            "path": ["api", "assets", "{{asset_id}}", "status"]
                         }
                     }
                 }
@@ -858,9 +1145,14 @@
                         },
                         "method": "PATCH",
                         "url": {
-                            "raw": "{{base_url}}/api/meetings/1/start",
+                            "raw": "{{base_url}}/api/meetings/{{meeting_id}}/start",
                             "host": ["{{base_url}}"],
-                            "path": ["api", "meetings", "1", "start"]
+                            "path": [
+                                "api",
+                                "meetings",
+                                "{{meeting_id}}",
+                                "start"
+                            ]
                         }
                     }
                 },
@@ -879,9 +1171,9 @@
                         },
                         "method": "PATCH",
                         "url": {
-                            "raw": "{{base_url}}/api/meetings/1/end",
+                            "raw": "{{base_url}}/api/meetings/{{meeting_id}}/end",
                             "host": ["{{base_url}}"],
-                            "path": ["api", "meetings", "1", "end"]
+                            "path": ["api", "meetings", "{{meeting_id}}", "end"]
                         }
                     }
                 },
@@ -900,9 +1192,14 @@
                         },
                         "method": "PATCH",
                         "url": {
-                            "raw": "{{base_url}}/api/meetings/1/force-end",
+                            "raw": "{{base_url}}/api/meetings/{{meeting_id}}/force-end",
                             "host": ["{{base_url}}"],
-                            "path": ["api", "meetings", "1", "force-end"]
+                            "path": [
+                                "api",
+                                "meetings",
+                                "{{meeting_id}}",
+                                "force-end"
+                            ]
                         }
                     }
                 }
@@ -979,7 +1276,11 @@
                                     "value": "2025-09-16T08:55:00",
                                     "type": "text"
                                 },
-                                { "key": "photo", "type": "file", "src": "" },
+                                {
+                                    "key": "photo",
+                                    "type": "file",
+                                    "src": []
+                                },
                                 {
                                     "key": "notes",
                                     "value": "NDA signed",
@@ -995,10 +1296,114 @@
                     }
                 }
             ]
+        },
+        {
+            "name": "Test & Debug",
+            "item": [
+                {
+                    "name": "Test Evidence Upload",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "POST",
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "evidence",
+                                    "type": "file",
+                                    "src": []
+                                }
+                            ]
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/test-upload",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "test-upload"]
+                        }
+                    }
+                },
+                {
+                    "name": "Debug User Info",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{base_url}}/api/debug/user",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "debug", "user"]
+                        }
+                    }
+                },
+                {
+                    "name": "Debug Todo Info",
+                    "request": {
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{base_url}}/api/debug/todos/{{todo_id}}",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "debug", "todos", "{{todo_id}}"]
+                        }
+                    }
+                }
+            ]
         }
     ],
     "variable": [
-        { "key": "base_url", "value": "http://localhost:8000" },
-        { "key": "token", "value": "" }
+        {
+            "key": "base_url",
+            "value": "http://localhost:8000"
+        },
+        {
+            "key": "token",
+            "value": ""
+        },
+        {
+            "key": "todo_id",
+            "value": "1"
+        },
+        {
+            "key": "user_id",
+            "value": "1"
+        },
+        {
+            "key": "request_id",
+            "value": "1"
+        },
+        {
+            "key": "asset_id",
+            "value": "1"
+        },
+        {
+            "key": "meeting_id",
+            "value": "1"
+        }
     ]
 }

@@ -9,6 +9,7 @@ use App\Http\Controllers\ProcurementController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\MeetingController;
 use App\Http\Controllers\VisitorController;
+use Illuminate\Http\Request;
 
 /*
 |--------------------------------------------------------------------------
@@ -37,21 +38,29 @@ Route::middleware('auth:sanctum')->get('/me', [UserController::class, 'me']);
 // ---------------- TODOS ----------------
 // User: manage own todos
 Route::middleware(['auth:sanctum', 'role:user'])->prefix('todos')->group(function () {
-    Route::get('/', [TodoController::class, 'index']);            // list own todos
-    Route::post('/', [TodoController::class, 'store']);           // create todo
-    Route::put('/{id}', [TodoController::class, 'update']);       // update todo (full)
-    Route::patch('/{id}', [TodoController::class, 'update']);     // update todo (partial)
-    Route::patch('/{id}/start', [TodoController::class, 'start']); // start todo (not_started -> in_progress)
-    Route::patch('/{id}/submit', [TodoController::class, 'submitForChecking']); // submit for checking
-    Route::delete('/{id}', [TodoController::class, 'destroy']);   // delete todo
+    Route::get('/', [TodoController::class, 'index']);                    // list own todos
+    Route::post('/', [TodoController::class, 'store']);                   // create todo
+    Route::put('/{id}', [TodoController::class, 'update']);               // update todo (full)
+    Route::patch('/{id}', [TodoController::class, 'update']);             // update todo (partial)
+    Route::patch('/{id}/start', [TodoController::class, 'start']);        // start todo (not_started -> in_progress)
+
+    // FIXED: Use POST for file uploads - more reliable than PATCH/PUT
+    Route::post('/{id}/submit', [TodoController::class, 'submitForChecking']); // submit for checking
+    Route::post('/{id}/improve', [TodoController::class, 'submitImprovement']); // submit improvements during evaluating
+
+    Route::delete('/{id}', [TodoController::class, 'destroy']);           // delete todo
 });
 
-// admin: manage all todos
-Route::middleware(['auth:sanctum', 'role:admin'])->prefix('todos')->group(function () {
-    Route::get('/all', [TodoController::class, 'indexAll']);           // semua todos
-    Route::patch('/{id}/evaluate', [TodoController::class, 'evaluate']); // new evaluation endpoint
-    Route::get('/evaluate/{userId}', [TodoController::class, 'evaluateOverall']); // overall performance evaluation
-    // Removed legacy routes
+// Admin/GA: manage all todos - FIXED role permission
+Route::middleware(['auth:sanctum'])->prefix('todos')->group(function () {
+    // Allow both admin and GA to access these routes
+    Route::get('/all', [TodoController::class, 'indexAll'])->middleware('role:admin,ga');
+    Route::patch('/{id}/evaluate', [TodoController::class, 'evaluate'])->middleware('role:admin,ga');
+    Route::get('/evaluate/{userId}', [TodoController::class, 'evaluateOverall'])->middleware('role:admin,ga');
+
+    // Legacy routes for backward compatibility (deprecated)
+    Route::patch('/{id}/check', [TodoController::class, 'check'])->middleware('role:admin,ga');
+    Route::patch('/{id}/note', [TodoController::class, 'addNote'])->middleware('role:admin,ga');
 });
 
 // ---------------- REQUESTS ----------------
@@ -59,7 +68,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('todos')->group(functi
 Route::middleware(['auth:sanctum', 'role:user'])->prefix('requests')->group(function () {
     Route::post('/', [RequestItemController::class, 'store']);
 });
-// admin: manage requests
+// Admin: manage requests
 Route::middleware(['auth:sanctum', 'role:admin'])->prefix('requests')->group(function () {
     Route::get('/', [RequestItemController::class, 'index']);
     Route::patch('/{id}/approve', [RequestItemController::class, 'approve']);
@@ -80,7 +89,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('assets')->group(funct
 });
 
 // ---------------- MEETINGS ----------------
-// semua role bisa akses booking
+// All roles can access booking
 Route::middleware('auth:sanctum')->prefix('meetings')->group(function () {
     Route::get('/', [MeetingController::class, 'index']);
     Route::post('/', [MeetingController::class, 'store']);
@@ -93,4 +102,73 @@ Route::middleware('auth:sanctum')->prefix('meetings')->group(function () {
 Route::middleware(['auth:sanctum', 'role:admin'])->prefix('visitors')->group(function () {
     Route::get('/', [VisitorController::class, 'index']);
     Route::post('/', [VisitorController::class, 'store']);
+});
+
+// ---------------- TEST UPLOAD (for debugging) ----------------
+Route::post('/test-upload', function (Request $request) {
+    try {
+        \Log::info('Test Upload Debug', [
+            'has_file' => $request->hasFile('evidence'),
+            'all_files' => $request->allFiles(),
+            'all_data' => $request->all(),
+            'content_type' => $request->header('Content-Type'),
+            'method' => $request->method()
+        ]);
+
+        if (!$request->hasFile('evidence')) {
+            return response()->json([
+                'message' => 'No file found',
+                'debug' => [
+                    'has_file' => $request->hasFile('evidence'),
+                    'all_files' => $request->allFiles(),
+                    'content_type' => $request->header('Content-Type')
+                ]
+            ], 422);
+        }
+
+        $file = $request->file('evidence');
+        $filename = 'test_' . time() . '.' . $file->getClientOriginalExtension();
+        $path = $file->storeAs('evidence', $filename, 'public');
+
+        return response()->json([
+            'success' => true,
+            'filename' => $filename,
+            'path' => $path,
+            'size' => $file->getSize(),
+            'mime' => $file->getMimeType(),
+            'full_url' => asset('storage/' . $path)
+        ]);
+    } catch (\Exception $e) {
+        \Log::error('Test Upload Error', [
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
+
+        return response()->json([
+            'error' => $e->getMessage(),
+            'line' => $e->getLine(),
+            'file' => $e->getFile()
+        ], 500);
+    }
+});
+
+// ---------------- DEBUG ROUTES (remove in production) ----------------
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/debug/user', function (Request $request) {
+        return response()->json([
+            'user' => $request->user(),
+            'roles' => $request->user()->getRoleNames(),
+            'permissions' => $request->user()->getAllPermissions()
+        ]);
+    });
+
+    Route::get('/debug/todos/{id}', function (Request $request, $id) {
+        $todo = \App\Models\Todo::findOrFail($id);
+        return response()->json([
+            'todo' => $todo,
+            'user_can_access' => $todo->user_id === $request->user()->id,
+            'file_exists' => $todo->evidence_path ? \Storage::disk('public')->exists($todo->evidence_path) : false,
+            'full_path' => $todo->evidence_path ? storage_path('app/public/' . $todo->evidence_path) : null
+        ]);
+    });
 });
