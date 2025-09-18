@@ -11,6 +11,7 @@ class Visitor extends Model
 
     protected $fillable = [
         'name',
+        'sequence',
         'meet_with',
         'purpose',
         'origin',
