@@ -12,6 +12,19 @@ class TodoResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $formatJakarta = function ($value) {
+            if (!$value) return null;
+            try {
+                if ($value instanceof \Carbon\Carbon || $value instanceof \Illuminate\Support\Carbon) {
+                    $dt = $value;
+                } else {
+                    $dt = \Carbon\Carbon::parse($value);
+                }
+                return $dt->timezone('Asia/Jakarta')->locale('id')->translatedFormat('l, d F Y H:i:s');
+            } catch (\Throwable $e) {
+                return (string) $value;
+            }
+        };
         // Handle multiple evidence files
         $evidenceFiles = [];
         if ($this->evidence_paths && is_array($this->evidence_paths)) {
@@ -65,17 +78,17 @@ class TodoResource extends JsonResource
             'notes' => $this->notes,
             'due_date' => $this->due_date,
             'scheduled_date' => $this->scheduled_date,
-            'started_at' => $this->started_at,
-            'submitted_at' => $this->submitted_at,
-            'total_work_time' => $this->total_work_time,
-            'total_work_time_formatted' => $this->total_work_time_formatted,
-            'created_at' => $this->created_at->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') . ' (' . $this->created_at->diffForHumans() . ')',
+            'started_at' => $formatJakarta($this->started_at),
+            'submitted_at' => $formatJakarta($this->submitted_at),
+            // Expose only formatted duration (replace raw field)
+            'total_work_time' => $this->total_work_time_formatted,
+            'created_at' => $this->created_at->timezone('Asia/Jakarta')->locale('id')->translatedFormat('l, d F Y H:i:s'),
             'evidence_files' => $evidenceFiles,
         ];
 
         // Only include updated_at if it's different from created_at
         if ($this->updated_at && $this->updated_at->gt($this->created_at)) {
-            $data['updated_at'] = $this->updated_at->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') . ' (' . $this->updated_at->diffForHumans() . ')';
+            $data['updated_at'] = $this->updated_at->timezone('Asia/Jakarta')->locale('id')->translatedFormat('l, d F Y H:i:s');
         }
 
     // Add warnings section with report (always present)

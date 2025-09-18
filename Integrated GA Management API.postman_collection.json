@@ -1,7 +1,7 @@
 {
     "info": {
         "_postman_id": "5ad1ad8c-3b5a-4b44-9a7f-integrated-ga",
-        "name": "Integrated GA Management API - FIXED",
+        "name": "Integrated GA Management API - FIXED PROMAX",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "item": [
@@ -1592,43 +1592,28 @@
             ]
         },
         {
-            "name": "Visitors (admin)",
+            "name": "Visitors",
             "item": [
                 {
-                    "name": "List",
+                    "name": "Register Visitor (OCR + Face)",
                     "request": {
-                        "auth": {
-                            "type": "bearer",
-                            "bearer": [
-                                {
-                                    "key": "token",
-                                    "value": "{{token}}",
-                                    "type": "string"
-                                }
-                            ]
-                        },
-                        "method": "GET",
-                        "url": {
-                            "raw": "{{base_url}}/api/visitors",
-                            "host": ["{{base_url}}"],
-                            "path": ["api", "visitors"]
-                        }
-                    }
-                },
-                {
-                    "name": "Create (with photo)",
-                    "request": {
-                        "auth": {
-                            "type": "bearer",
-                            "bearer": [
-                                {
-                                    "key": "token",
-                                    "value": "{{token}}",
-                                    "type": "string"
-                                }
-                            ]
-                        },
                         "method": "POST",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
                         "body": {
                             "mode": "formdata",
                             "formdata": [
@@ -1638,39 +1623,24 @@
                                     "type": "text"
                                 },
                                 {
-                                    "key": "company",
-                                    "value": "Acme",
-                                    "type": "text"
-                                },
-                                {
-                                    "key": "id_number",
-                                    "value": "ID-001",
+                                    "key": "meet_with",
+                                    "value": "General Admin",
                                     "type": "text"
                                 },
                                 {
                                     "key": "purpose",
-                                    "value": "Meeting",
+                                    "value": "Meeting vendor",
                                     "type": "text"
                                 },
                                 {
-                                    "key": "person_to_meet",
-                                    "value": "GA",
-                                    "type": "text"
-                                },
-                                {
-                                    "key": "check_in",
-                                    "value": "2025-09-16T08:55:00",
-                                    "type": "text"
-                                },
-                                {
-                                    "key": "photo",
+                                    "key": "ktp_image",
                                     "type": "file",
                                     "src": []
                                 },
                                 {
-                                    "key": "notes",
-                                    "value": "NDA signed",
-                                    "type": "text"
+                                    "key": "face_image",
+                                    "type": "file",
+                                    "src": []
                                 }
                             ]
                         },
@@ -1678,6 +1648,129 @@
                             "raw": "{{base_url}}/api/visitors",
                             "host": ["{{base_url}}"],
                             "path": ["api", "visitors"]
+                        }
+                    }
+                },
+                {
+                    "name": "List (admin/ga)",
+                    "request": {
+                        "method": "GET",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/visitors?date={{v_date}}&search={{search}}&per_page={{per_page}}",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "visitors"],
+                            "query": [
+                                { "key": "date", "value": "{{v_date}}" },
+                                { "key": "search", "value": "{{search}}" },
+                                { "key": "per_page", "value": "{{per_page}}" }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Show (admin/ga)",
+                    "request": {
+                        "method": "GET",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/visitors/{{visitor_id}}",
+                            "host": ["{{base_url}}"],
+                            "path": ["api", "visitors", "{{visitor_id}}"]
+                        }
+                    }
+                },
+                {
+                    "name": "Check-In (admin/ga)",
+                    "request": {
+                        "method": "POST",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/visitors/{{visitor_id}}/check-in",
+                            "host": ["{{base_url}}"],
+                            "path": [
+                                "api",
+                                "visitors",
+                                "{{visitor_id}}",
+                                "check-in"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Check-Out (admin/ga)",
+                    "request": {
+                        "method": "POST",
+                        "auth": {
+                            "type": "bearer",
+                            "bearer": [
+                                {
+                                    "key": "token",
+                                    "value": "{{token}}",
+                                    "type": "string"
+                                }
+                            ]
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/visitors/{{visitor_id}}/check-out",
+                            "host": ["{{base_url}}"],
+                            "path": [
+                                "api",
+                                "visitors",
+                                "{{visitor_id}}",
+                                "check-out"
+                            ]
                         }
                     }
                 }
@@ -1806,6 +1899,14 @@
         {
             "key": "per_page",
             "value": "20"
+        },
+        {
+            "key": "visitor_id",
+            "value": "1"
+        },
+        {
+            "key": "v_date",
+            "value": "2025-09-18"
         }
     ]
 }

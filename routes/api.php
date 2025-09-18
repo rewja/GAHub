@@ -106,9 +106,12 @@ Route::middleware('auth:sanctum')->prefix('meetings')->group(function () {
 });
 
 // ---------------- VISITORS ----------------
-Route::middleware(['auth:sanctum', 'role:admin'])->prefix('visitors')->group(function () {
+Route::middleware(['auth:sanctum', 'role:admin,ga'])->prefix('visitors')->group(function () {
     Route::get('/', [VisitorController::class, 'index']);
     Route::post('/', [VisitorController::class, 'store']);
+    Route::get('/{id}', [VisitorController::class, 'show']);
+    Route::post('/{id}/check-in', [VisitorController::class, 'checkIn']);
+    Route::post('/{id}/check-out', [VisitorController::class, 'checkOut']);
 });
 
 // ---------------- TEST UPLOAD (for debugging) ----------------
