@@ -43,8 +43,8 @@ class VisitorController extends Controller
                 'meet_with' => 'required|string|max:150',
                 'purpose' => 'required|string|max:300',
                 'origin' => 'nullable|string|max:150',
-                'ktp_image' => 'required|image|mimes:jpeg,png,jpg|max:5120',
-                'face_image' => 'required|image|mimes:jpeg,png,jpg|max:5120',
+                'ktp_image' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
+                'face_image' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
             ]);
 
             $now = Carbon::now('Asia/Jakarta');
@@ -59,52 +59,98 @@ class VisitorController extends Controller
             $day = $now->format('d');
             $safeName = trim(preg_replace('/[^A-Za-z0-9 \-]/', '', $data['name']));
 
-            // Replace existing entries for same name on the same day
+            // Determine sequence (global per day, keyed by name)
             $baseDatePath = "visitors/{$year}/{$month}/{$day}";
-            $existingDirs = Storage::disk('public')->directories($baseDatePath);
-            foreach ($existingDirs as $dir) {
-                // Expect directory like .../Name-XX
-                $basename = basename($dir);
-                if (preg_match('/^' . preg_quote($safeName, '/') . '-\\d{2}$/', $basename)) {
-                    Storage::disk('public')->deleteDirectory($dir);
-                }
-            }
-            Visitor::where('name', $data['name'])
-                ->whereDate('created_at', $now->toDateString())
-                ->delete();
 
-            // Always start fresh with sequence 01 after replacement
-            $sequence = 1;
+            $todayQuery = Visitor::whereDate('created_at', $now->toDateString());
+            $sameNameQuery = (clone $todayQuery)->where('name', $data['name']);
+            $existingSameName = $sameNameQuery->get();
+
+            if ($existingSameName->count() > 0) {
+                // If same name already exists today: reuse the assigned sequence (keep it stable)
+                $seqsDb = $existingSameName->pluck('sequence')->filter()->all();
+                $seqFromFs = null;
+                if (Storage::disk('public')->exists($baseDatePath)) {
+                    foreach (Storage::disk('public')->directories($baseDatePath) as $dir) {
+                        $basename = basename($dir);
+                        if (preg_match('/^' . preg_quote($safeName, '/') . '-(\d{2})$/', $basename, $m)) {
+                            $seqFromFs = (int) $m[1];
+                            // only capture for this name; loop continues but value is fine
+                        }
+                    }
+                }
+                $sequenceCandidates = $seqsDb;
+                if ($seqFromFs) { $sequenceCandidates[] = $seqFromFs; }
+                $sequence = count($sequenceCandidates) > 0 ? min($sequenceCandidates) : 1;
+
+                // Replace: delete DB rows and folders for this name today
+                foreach ($existingSameName as $ev) { $ev->delete(); }
+                if (Storage::disk('public')->exists($baseDatePath)) {
+                    foreach (Storage::disk('public')->directories($baseDatePath) as $dir) {
+                        $basename = basename($dir);
+                        if (preg_match('/^' . preg_quote($safeName, '/') . '-(\d{2})$/', $basename)) {
+                            Storage::disk('public')->deleteDirectory($dir);
+                        }
+                    }
+                }
+            } else {
+                // New name today: assign next global sequence for the day
+                $maxSeqDb = (int) ($todayQuery->max('sequence') ?? 0);
+                $maxSeqFs = 0;
+                if (Storage::disk('public')->exists($baseDatePath)) {
+                    foreach (Storage::disk('public')->directories($baseDatePath) as $dir) {
+                        $basename = basename($dir);
+                        if (preg_match('/-(\d{2})$/', $basename, $m)) {
+                            $maxSeqFs = max($maxSeqFs, (int)$m[1]);
+                        }
+                    }
+                }
+                $baseline = max($maxSeqDb, $maxSeqFs);
+                $sequence = $baseline > 0 ? $baseline + 1 : 1;
+            }
 
             $folder = "visitors/{$year}/{$month}/{$day}/{$safeName}-" . str_pad((string)$sequence, 2, '0', STR_PAD_LEFT);
             $faceFolder = $folder . '/face';
             $ktpFolder = $folder . '/ktp';
-            if (!Storage::disk('public')->exists($faceFolder)) {
-                Storage::disk('public')->makeDirectory($faceFolder);
-            }
-            if (!Storage::disk('public')->exists($ktpFolder)) {
-                Storage::disk('public')->makeDirectory($ktpFolder);
-            }
 
             // Filenames
             $timePart = $now->format('Ymd_His');
-            $ktpExt = $request->file('ktp_image')->getClientOriginalExtension();
-            $faceExt = $request->file('face_image')->getClientOriginalExtension();
-            $ktpFilename = "KTP-{$timePart}-{$safeName}.{$ktpExt}";
-            $faceFilename = "FACE-{$timePart}-{$safeName}.{$faceExt}";
+            $ktpFilename = null;
+            $faceFilename = null;
+            if ($request->hasFile('ktp_image')) {
+                if (!Storage::disk('public')->exists($ktpFolder)) {
+                    Storage::disk('public')->makeDirectory($ktpFolder);
+                }
+                $ktpExt = $request->file('ktp_image')->getClientOriginalExtension();
+                $ktpFilename = "KTP-{$timePart}-{$safeName}.{$ktpExt}";
+            }
+            if ($request->hasFile('face_image')) {
+                if (!Storage::disk('public')->exists($faceFolder)) {
+                    Storage::disk('public')->makeDirectory($faceFolder);
+                }
+                $faceExt = $request->file('face_image')->getClientOriginalExtension();
+                $faceFilename = "FACE-{$timePart}-{$safeName}.{$faceExt}";
+            }
 
             // Store as
-            $ktpPath = $request->file('ktp_image')->storeAs($ktpFolder, $ktpFilename, 'public');
-            $facePath = $request->file('face_image')->storeAs($faceFolder, $faceFilename, 'public');
+            $ktpPath = null;
+            $facePath = null;
+            if ($ktpFilename) {
+                $ktpPath = $request->file('ktp_image')->storeAs($ktpFolder, $ktpFilename, 'public');
+            }
+            if ($faceFilename) {
+                $facePath = $request->file('face_image')->storeAs($faceFolder, $faceFilename, 'public');
+            }
 
             // OCR stub (replace with real OCR service)
-            $ktpOcr = app('app.services.ocr')->extract($ktpPath);
+            $ktpOcr = $ktpPath ? app('app.services.ocr')->extract($ktpPath) : null;
 
             // Face recognition stub (replace with real FR service)
-            $faceVerified = app('app.services.face')->verify($facePath, $data['name']);
+            $faceVerified = $facePath ? app('app.services.face')->verify($facePath, $data['name']) : false;
 
             $visitor = Visitor::create([
                 'name' => $data['name'],
+                'sequence' => $sequence,
                 'meet_with' => $data['meet_with'],
                 'purpose' => $data['purpose'],
                 'origin' => $data['origin'] ?? null,

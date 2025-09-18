@@ -10,8 +10,6 @@ use App\Http\Controllers\AssetController;
 use App\Http\Controllers\MeetingController;
 use App\Http\Controllers\VisitorController;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 /*
 |--------------------------------------------------------------------------
@@ -114,71 +112,4 @@ Route::middleware(['auth:sanctum', 'role:admin,ga'])->prefix('visitors')->group(
     Route::post('/{id}/check-out', [VisitorController::class, 'checkOut']);
 });
 
-// ---------------- TEST UPLOAD (for debugging) ----------------
-Route::post('/test-upload', function (Request $request) {
-    try {
-        Log::info('Test Upload Debug', [
-            'has_file' => $request->hasFile('evidence'),
-            'all_files' => $request->allFiles(),
-            'all_data' => $request->all(),
-            'content_type' => $request->header('Content-Type'),
-            'method' => $request->method()
-        ]);
-
-        if (!$request->hasFile('evidence')) {
-            return response()->json([
-                'message' => 'No file found',
-                'debug' => [
-                    'has_file' => $request->hasFile('evidence'),
-                    'all_files' => $request->allFiles(),
-                    'content_type' => $request->header('Content-Type')
-                ]
-            ], 422);
-        }
-
-        $file = $request->file('evidence');
-        $filename = 'test_' . time() . '.' . $file->getClientOriginalExtension();
-        $path = $file->storeAs('evidence', $filename, 'public');
-
-        return response()->json([
-            'success' => true,
-            'filename' => $filename,
-            'path' => $path,
-            'size' => $file->getSize(),
-            'mime' => $file->getMimeType(),
-            'full_url' => asset('storage/' . $path)
-        ]);
-    } catch (\Exception $e) {
-        Log::error('Test Upload Error', [
-            'message' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
-
-        return response()->json([
-            'error' => $e->getMessage(),
-            'line' => $e->getLine(),
-            'file' => $e->getFile()
-        ], 500);
-    }
-});
-
-// ---------------- DEBUG ROUTES (remove in production) ----------------
-Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/debug/user', function (Request $request) {
-        return response()->json([
-            'user' => $request->user(),
-            'roles' => $request->user()->getRoleNames(),
-            'permissions' => $request->user()->getAllPermissions()
-        ]);
-    });
-
-    Route::get('/debug/todos/{id}', function (Request $request, $id) {
-        $todo = \App\Models\Todo::findOrFail($id);
-        return response()->json([
-            'todo' => $todo,
-            'user_can_access' => $todo->user_id === $request->user()->id,
-            'file_exists' => $todo->evidence_path ? Storage::disk('public')->exists($todo->evidence_path) : false,
-            'full_path' => $todo->evidence_path ? storage_path('app/public/' . $todo->evidence_path) : null
-        ]);
-    });
-});
+// (Debug routes removed)
