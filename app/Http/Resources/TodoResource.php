@@ -12,13 +12,43 @@ class TodoResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        // Resolve public path and absolute URL for evidence file
-        $publicPath = $this->evidence_path ? Storage::url($this->evidence_path) : null;
-        $absoluteUrl = $publicPath ? url($publicPath) : null;
+        $formatJakarta = function ($value) {
+            if (!$value) return null;
+            try {
+                if ($value instanceof \Carbon\Carbon || $value instanceof \Illuminate\Support\Carbon) {
+                    $dt = $value;
+                } else {
+                    $dt = \Carbon\Carbon::parse($value);
+                }
+                return $dt->timezone('Asia/Jakarta')->locale('id')->translatedFormat('l, d F Y H:i:s');
+            } catch (\Throwable $e) {
+                return (string) $value;
+            }
+        };
+        // Handle multiple evidence files
+        $evidenceFiles = [];
+        if ($this->evidence_paths && is_array($this->evidence_paths)) {
+            foreach ($this->evidence_paths as $path) {
+                $evidenceFiles[] = [
+                    'path' => Storage::url($path),
+                    'url' => url(Storage::url($path)),
+                    'exists' => Storage::disk('public')->exists($path),
+                    'name' => pathinfo($path, PATHINFO_FILENAME)
+                ];
+            }
+        } elseif ($this->evidence_path) {
+            // Fallback to single file for backward compatibility
+            $publicPath = Storage::url($this->evidence_path);
+            $absoluteUrl = url($publicPath);
+            $evidenceName = pathinfo($this->evidence_path, PATHINFO_FILENAME);
 
-        // evidence_name follows actual filename (without extension)
-        $fileBase = $this->evidence_path ? pathinfo($this->evidence_path, PATHINFO_BASENAME) : null;
-        $evidenceName = $fileBase ? pathinfo($fileBase, PATHINFO_FILENAME) : null;
+            $evidenceFiles[] = [
+                'path' => $publicPath,
+                'url' => $absoluteUrl,
+                'exists' => Storage::disk('public')->exists($this->evidence_path),
+                'name' => $evidenceName
+            ];
+        }
 
         // Resolve checker display
         $checkerDisplay = null;
@@ -42,28 +72,23 @@ class TodoResource extends JsonResource
             'user_id' => $this->user_id,
             'title' => $this->title,
             'description' => $this->description,
-            'evidence_name' => $evidenceName,
             'status' => $this->status,
             'checked_by' => $checkerDisplay,
             'checker_display' => $checkerDisplay,
             'notes' => $this->notes,
             'due_date' => $this->due_date,
             'scheduled_date' => $this->scheduled_date,
-            'started_at' => $this->started_at,
-            'submitted_at' => $this->submitted_at,
-            'total_work_time' => $this->total_work_time,
-            'total_work_time_formatted' => $this->total_work_time_formatted,
-            'created_at' => $this->created_at->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') . ' (' . $this->created_at->diffForHumans() . ')',
-            'evidence' => [
-                'path' => $publicPath,
-                'url' => $absoluteUrl,
-                'exists' => Storage::disk('public')->exists($this->evidence_path)
-            ],
+            'started_at' => $formatJakarta($this->started_at),
+            'submitted_at' => $formatJakarta($this->submitted_at),
+            // Expose only formatted duration (replace raw field)
+            'total_work_time' => $this->total_work_time_formatted,
+            'created_at' => $this->created_at->timezone('Asia/Jakarta')->locale('id')->translatedFormat('l, d F Y H:i:s'),
+            'evidence_files' => $evidenceFiles,
         ];
 
         // Only include updated_at if it's different from created_at
         if ($this->updated_at && $this->updated_at->gt($this->created_at)) {
-            $data['updated_at'] = $this->updated_at->timezone('Asia/Jakarta')->format('Y-m-d H:i:s') . ' (' . $this->updated_at->diffForHumans() . ')';
+            $data['updated_at'] = $this->updated_at->timezone('Asia/Jakarta')->locale('id')->translatedFormat('l, d F Y H:i:s');
         }
 
     // Add warnings section with report (always present)

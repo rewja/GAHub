@@ -54,7 +54,7 @@ class TodoController extends Controller
     private function nextDailySequence(int $userId, Carbon $date): int
     {
         $count = Todo::where('user_id', $userId)
-            ->whereDate('submitted_at', $date->toDateString())
+            ->whereDate('created_at', $date->toDateString())
             ->count();
         return $count + 1; // next number for that day
     }
@@ -73,6 +73,33 @@ class TodoController extends Controller
     {
         $safeUser = preg_replace('/[^A-Za-z0-9\- ]/', '', $userName ?: 'User');
         return 'evidence/' . $date->format('Y') . '/' . $date->format('m') . '/' . $date->format('d') . '/' . $safeUser;
+    }
+
+    private function renameEvidenceFile(string $oldPath, string $suffix): ?string
+    {
+        if (!$oldPath || !Storage::disk('public')->exists($oldPath)) {
+            return null;
+        }
+
+        $pathInfo = pathinfo($oldPath);
+        $directory = $pathInfo['dirname'];
+        $filename = $pathInfo['filename'];
+        $extension = $pathInfo['extension'] ?? '';
+
+        $newFilename = $filename . '-' . $suffix . ($extension ? '.' . $extension : '');
+        $newPath = $directory . '/' . $newFilename;
+
+        try {
+            Storage::disk('public')->move($oldPath, $newPath);
+            return $newPath;
+        } catch (\Throwable $e) {
+            Log::warning('Failed to rename evidence file', [
+                'old_path' => $oldPath,
+                'new_path' => $newPath,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
     }
 
     // User: list own todos
@@ -250,8 +277,8 @@ class TodoController extends Controller
         $todo = Todo::where('user_id', $request->user()->id)->findOrFail($id);
 
         $currentStatus = $todo->status;
-        // 1) After checking phase (evaluating/completed) => block any edits
-        if (in_array($currentStatus, ['evaluating', 'completed'])) {
+        // 1) After checking phase (evaluating/reworked/completed) => block any edits
+        if (in_array($currentStatus, ['evaluating', 'reworked', 'completed'])) {
             return response()->json([
                 'message' => 'Todo can no longer be edited after the checking phase'
             ], 422);
@@ -286,34 +313,100 @@ class TodoController extends Controller
             ]);
         }
 
-        // 3) During checking => allow evidence replacement ONLY (text changes ignored)
+        // 3) During checking => allow evidence addition/replacement (text changes ignored)
         if ($currentStatus === 'checking') {
-            if (!$request->hasFile('evidence')) {
+            // Evidence is mandatory for update during checking
+            $hasEvidence = $request->hasFile('evidence') ||
+                          (is_array($request->file('evidence')) && count(array_filter($request->file('evidence'))) > 0);
+
+            if (!$hasEvidence) {
                 return response()->json([
                     'message' => 'Evidence file is required during checking to update'
                 ], 422);
             }
 
-            $request->validate([
-                'evidence' => 'file|mimes:jpeg,png,jpg,gif,webp,bmp,tiff|max:10240'
-            ]);
+            // Simple validation that works with both single and array format
+            $files = $request->file('evidence');
+            if (!$files) {
+                return response()->json([
+                    'message' => 'No evidence files found'
+                ], 422);
+}
 
-            $file = $request->file('evidence');
-            $ext = $file->getClientOriginalExtension();
             $now = Carbon::now();
             $folder = $this->getEvidenceFolder($now, $request->user()->name);
             if (!Storage::disk('public')->exists($folder)) {
                 Storage::disk('public')->makeDirectory($folder, 0755, true);
             }
-            $filename = $this->buildEvidenceFilename($request->user()->name, $request->user()->id, $ext, $now);
-            $path = $file->storeAs($folder, $filename, 'public');
 
-            // optionally delete old file (keep folder)
+            // Extract sequence number from original filename if exists
+            $sequenceNumber = null;
             if ($todo->evidence_path && Storage::disk('public')->exists($todo->evidence_path)) {
-                try { Storage::disk('public')->delete($todo->evidence_path); } catch (\Throwable $e) { /* ignore */ }
+                $originalFilename = pathinfo($todo->evidence_path, PATHINFO_BASENAME);
+                // Extract sequence number from filename like "ETD-03-..."
+                if (preg_match('/ETD-(\d+)-/', $originalFilename, $matches)) {
+                    $sequenceNumber = $matches[1];
+                }
             }
 
-            $todo->evidence_path = $path;
+            // Get sequence number for new files
+            if (!$sequenceNumber) {
+                $todoCreatedDate = Carbon::parse($todo->created_at);
+                $sequenceNumber = str_pad((string) $this->nextDailySequence($request->user()->id, $todoCreatedDate), 2, '0', STR_PAD_LEFT);
+            }
+
+            // Handle files - support both single file and array format
+            $evidenceFiles = $files;
+            if (!is_array($evidenceFiles)) {
+                $evidenceFiles = [$evidenceFiles];
+            }
+
+            // Filter out null files and limit to maximum 5 files
+            $evidenceFiles = array_filter($evidenceFiles, function($file) {
+                return $file !== null && $file->isValid();
+            });
+            $evidenceFiles = array_slice($evidenceFiles, 0, 5);
+
+            if (empty($evidenceFiles)) {
+                return response()->json([
+                    'message' => 'No valid evidence files found'
+                ], 422);
+            }
+
+            // Check maximum 5 files for new uploads
+            if (count($evidenceFiles) > 5) {
+                return response()->json([
+                    'message' => 'Maximum 5 evidence files allowed'
+                ], 422);
+            }
+
+            // IMPORTANT: User must re-upload ALL files - delete all old evidence files first
+            if ($todo->evidence_paths && is_array($todo->evidence_paths)) {
+                foreach ($todo->evidence_paths as $oldPath) {
+                    if (Storage::disk('public')->exists($oldPath)) {
+                        Storage::disk('public')->delete($oldPath);
+                    }
+                }
+            } elseif ($todo->evidence_path && Storage::disk('public')->exists($todo->evidence_path)) {
+                Storage::disk('public')->delete($todo->evidence_path);
+            }
+
+            // Store only the new files uploaded by user
+            $storedPaths = [];
+            $day = $this->getDayNameId($now);
+            $safeUser = preg_replace('/[^A-Za-z0-9\- ]/', '', $request->user()->name ?: 'User');
+            $timePart = $now->format('Y-m-d H.i.s');
+
+            foreach ($evidenceFiles as $index => $file) {
+                $ext = $file->getClientOriginalExtension();
+                $filename = "ETD-{$sequenceNumber}-{$safeUser}-{$day}-{$timePart}-Updated-Checking-{$index}.{$ext}";
+                $path = $file->storeAs($folder, $filename, 'public');
+                $storedPaths[] = $path;
+            }
+
+            // Store the first file path as primary evidence_path and all paths in evidence_paths
+            $todo->evidence_path = $storedPaths[0] ?? null;
+            $todo->evidence_paths = $storedPaths;
             $todo->save();
 
             return response()->json([
@@ -351,62 +444,131 @@ class TodoController extends Controller
     // User: submit for checking (transition in_progress -> checking)
     public function submitForChecking(Request $request, $id)
     {
-        $todo = Todo::where('user_id', $request->user()->id)->findOrFail($id);
-        if ($todo->status !== 'in_progress') {
-            return response()->json(['message' => 'Invalid state transition'], 422);
-        }
-
-        $path = null;
-        $now = Carbon::now();
-        $folder = $this->getEvidenceFolder($now, $request->user()->name);
-        if (!Storage::disk('public')->exists($folder)) {
-            Storage::disk('public')->makeDirectory($folder, 0755, true);
-        }
-
-        // Evidence is mandatory for submitForChecking
-        if (!$request->hasFile('evidence')) {
-            return response()->json([
-                'message' => 'Evidence file is required when submitting for checking'
-            ], 422);
-        }
-
-        $request->validate([
-            'evidence' => 'required|file|mimes:jpeg,png,jpg,gif,webp,bmp,tiff|max:10240'
-        ]);
-
         try {
-            $file = $request->file('evidence');
-            $ext = $file->getClientOriginalExtension();
-            $filename = $this->buildEvidenceFilename($request->user()->name, $request->user()->id, $ext, $now);
-            $path = $file->storeAs($folder, $filename, 'public');
-        } catch (\Throwable $e) {
-            Log::error('Evidence storage failed on submitForChecking', [
-                'todo_id' => $todo->id,
-                'error' => $e->getMessage()
+            Log::info('SubmitForChecking Debug', [
+                'user_id' => $request->user()->id,
+                'todo_id' => $id,
+                'has_evidence' => $request->hasFile('evidence'),
+                'has_evidence_array' => $request->hasFile('evidence.*'),
+                'all_files' => $request->allFiles(),
+                'method' => $request->method()
             ]);
+
+            $todo = Todo::where('user_id', $request->user()->id)->findOrFail($id);
+            if ($todo->status !== 'in_progress') {
+                return response()->json(['message' => 'Invalid state transition'], 422);
+            }
+
+            $path = null;
+            $now = Carbon::now();
+            $folder = $this->getEvidenceFolder($now, $request->user()->name);
+            if (!Storage::disk('public')->exists($folder)) {
+                Storage::disk('public')->makeDirectory($folder, 0755, true);
+            }
+
+            // Evidence is mandatory for submitForChecking
+            $hasEvidence = $request->hasFile('evidence') ||
+                          (is_array($request->file('evidence')) && count(array_filter($request->file('evidence'))) > 0);
+
+            if (!$hasEvidence) {
+                return response()->json([
+                    'message' => 'Evidence file is required when submitting for checking'
+                ], 422);
+            }
+
+            // Simple validation that works with both single and array format
+            $files = $request->file('evidence');
+            if (!$files) {
+                return response()->json([
+                    'message' => 'No evidence files found'
+                ], 422);
+            }
+
+            // Extract sequence number from original filename if exists
+            $sequenceNumber = null;
+            if ($todo->evidence_path && Storage::disk('public')->exists($todo->evidence_path)) {
+                $originalFilename = pathinfo($todo->evidence_path, PATHINFO_BASENAME);
+                // Extract sequence number from filename like "ETD-03-..."
+                if (preg_match('/ETD-(\d+)-/', $originalFilename, $matches)) {
+                    $sequenceNumber = $matches[1];
+                }
+                // Delete old file completely
+                Storage::disk('public')->delete($todo->evidence_path);
+            }
+
+            // Get sequence number for new files
+            if (!$sequenceNumber) {
+                $todoCreatedDate = Carbon::parse($todo->created_at);
+                $sequenceNumber = str_pad((string) $this->nextDailySequence($request->user()->id, $todoCreatedDate), 2, '0', STR_PAD_LEFT);
+            }
+
+            // Prepare filename components
+            $day = $this->getDayNameId($now);
+            $safeUser = preg_replace('/[^A-Za-z0-9\- ]/', '', $request->user()->name ?: 'User');
+            $timePart = $now->format('Y-m-d H.i.s');
+
+            // Handle files - support both single file and array format
+            $evidenceFiles = $files;
+            if (!is_array($evidenceFiles)) {
+                $evidenceFiles = [$evidenceFiles];
+            }
+
+            // Filter out null files and limit to maximum 5 files
+            $evidenceFiles = array_filter($evidenceFiles, function($file) {
+                return $file !== null && $file->isValid();
+            });
+            $evidenceFiles = array_slice($evidenceFiles, 0, 5);
+
+            if (empty($evidenceFiles)) {
+                return response()->json([
+                    'message' => 'No valid evidence files found'
+                ], 422);
+            }
+
+            $storedPaths = [];
+            foreach ($evidenceFiles as $index => $file) {
+                $ext = $file->getClientOriginalExtension();
+                $filename = "ETD-{$sequenceNumber}-{$safeUser}-{$day}-{$timePart}-{$index}.{$ext}";
+                $path = $file->storeAs($folder, $filename, 'public');
+                $storedPaths[] = $path;
+            }
+
+            // Store the first file path as the main evidence_path and all paths in evidence_paths
+            $path = $storedPaths[0] ?? null;
+
+            $payload = [
+                'status' => 'checking',
+                'submitted_at' => $now,
+                'evidence_path' => $path,
+                'evidence_paths' => $storedPaths
+            ];
+
+            if ($todo->started_at) {
+                $totalMinutes = Carbon::parse($todo->started_at)->diffInMinutes($now);
+                $payload['total_work_time'] = $totalMinutes;
+                $payload['total_work_time_formatted'] = $this->formatDuration($totalMinutes);
+            }
+
+            $todo->update($payload);
+
             return response()->json([
-                'message' => 'Failed to store evidence file'
+                'message' => 'Todo submitted for checking',
+                'todo' => new TodoResource($todo)
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('SubmitForChecking Error', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'message' => 'Internal server error',
+                'error' => $e->getMessage()
             ], 500);
         }
-
-        $payload = [
-            'status' => 'checking',
-            'submitted_at' => $now,
-            'evidence_path' => $path
-        ];
-
-        if ($todo->started_at) {
-            $totalMinutes = Carbon::parse($todo->started_at)->diffInMinutes($now);
-            $payload['total_work_time'] = $totalMinutes;
-            $payload['total_work_time_formatted'] = $this->formatDuration($totalMinutes);
-        }
-
-        $todo->update($payload);
-
-        return response()->json([
-            'message' => 'Todo submitted for checking',
-            'todo' => new TodoResource($todo)
-        ]);
     }
 
     // GA: per-todo or overall evaluation approve -> completed, or request rework -> evaluating
@@ -422,7 +584,7 @@ class TodoController extends Controller
             'warning_note' => 'nullable|string|max:500'
         ]);
 
-        if (!in_array($todo->status, ['checking', 'evaluating'])) {
+        if (!in_array($todo->status, ['checking', 'reworked'])) {
             return response()->json(['message' => 'Todo is not in a valid evaluation phase'], 422);
         }
 
@@ -433,14 +595,6 @@ class TodoController extends Controller
         $createdWarning = null;
 
         if ($data['action'] === 'approve') {
-            // compute total work time when approving as completed
-            $now = Carbon::now();
-            $startedAt = $todo->started_at ? Carbon::parse($todo->started_at) : null;
-            $submittedAt = $todo->submitted_at ? Carbon::parse($todo->submitted_at) : null;
-
-            $endForCalc = $submittedAt ?? $now;
-            $totalMinutes = $startedAt ? max(0, $endForCalc->diffInMinutes($startedAt)) : 0;
-
             $todo->update([
                 'status' => 'completed',
                 'notes' => $data['notes'] ?? $todo->notes,
@@ -469,6 +623,78 @@ class TodoController extends Controller
                 ]);
             }
         } else {
+            // Delete old evidence files and create new ones with "Rework" suffix
+            $newPaths = [];
+            if ($todo->evidence_paths && is_array($todo->evidence_paths)) {
+                // Handle multiple files
+                foreach ($todo->evidence_paths as $index => $oldPath) {
+                    if (Storage::disk('public')->exists($oldPath)) {
+                        // Extract sequence number from original filename
+                        $originalFilename = pathinfo($oldPath, PATHINFO_BASENAME);
+                        $sequenceNumber = null;
+                        if (preg_match('/ETD-(\d+)-/', $originalFilename, $matches)) {
+                            $sequenceNumber = $matches[1];
+                        }
+
+                        // Delete old file completely
+                        Storage::disk('public')->delete($oldPath);
+
+                        // Create new file with Rework suffix
+                        if ($sequenceNumber) {
+                            $now = Carbon::now();
+                            $day = $this->getDayNameId($now);
+                            $safeUser = preg_replace('/[^A-Za-z0-9\- ]/', '', $todo->user->name ?: 'User');
+                            $timePart = $now->format('Y-m-d H.i.s');
+                            $ext = pathinfo($originalFilename, PATHINFO_EXTENSION);
+                            $filename = "ETD-{$sequenceNumber}-{$safeUser}-{$day}-{$timePart}-Rework-{$index}.{$ext}";
+
+                            $folder = $this->getEvidenceFolder($now, $todo->user->name);
+                            if (!Storage::disk('public')->exists($folder)) {
+                                Storage::disk('public')->makeDirectory($folder, 0755, true);
+                            }
+
+                            // Create empty file with new name
+                            $newPath = $folder . '/' . $filename;
+                            Storage::disk('public')->put($newPath, '');
+                            $newPaths[] = $newPath;
+                        }
+                    }
+                }
+                $todo->evidence_paths = $newPaths;
+                $todo->evidence_path = $newPaths[0] ?? null;
+            } elseif ($todo->evidence_path && Storage::disk('public')->exists($todo->evidence_path)) {
+                // Handle single file for backward compatibility
+                $originalFilename = pathinfo($todo->evidence_path, PATHINFO_BASENAME);
+                $sequenceNumber = null;
+                if (preg_match('/ETD-(\d+)-/', $originalFilename, $matches)) {
+                    $sequenceNumber = $matches[1];
+                }
+
+                // Delete old file completely
+                Storage::disk('public')->delete($todo->evidence_path);
+
+                // Create new file with Rework suffix
+                if ($sequenceNumber) {
+                    $now = Carbon::now();
+                    $day = $this->getDayNameId($now);
+                    $safeUser = preg_replace('/[^A-Za-z0-9\- ]/', '', $todo->user->name ?: 'User');
+                    $timePart = $now->format('Y-m-d H.i.s');
+                    $ext = pathinfo($originalFilename, PATHINFO_EXTENSION);
+                    $filename = "ETD-{$sequenceNumber}-{$safeUser}-{$day}-{$timePart}-Rework.{$ext}";
+
+                    $folder = $this->getEvidenceFolder($now, $todo->user->name);
+                    if (!Storage::disk('public')->exists($folder)) {
+                        Storage::disk('public')->makeDirectory($folder, 0755, true);
+                    }
+
+                    // Create empty file with new name
+                    $newPath = $folder . '/' . $filename;
+                    Storage::disk('public')->put($newPath, '');
+                    $todo->evidence_path = $newPath;
+                    $todo->evidence_paths = [$newPath];
+                }
+            }
+
             $todo->update([
                 'status' => 'evaluating',
                 'notes' => $data['notes'] ?? $todo->notes,
@@ -479,13 +705,7 @@ class TodoController extends Controller
 
         return response()->json([
             'message' => 'Evaluation recorded',
-            'todo' => new TodoResource($todo),
-            'warning' => $createdWarning ? [
-                'points' => (int) $createdWarning->points,
-                'level' => $createdWarning->level,
-                'note' => $createdWarning->note,
-                'created_at' => $createdWarning->created_at,
-            ] : null
+            'todo' => new TodoResource($todo)
         ]);
     }
 
@@ -506,26 +726,98 @@ class TodoController extends Controller
                 Storage::disk('public')->makeDirectory($folder, 0755, true);
             }
 
-            if ($request->hasFile('evidence')) {
-                $request->validate([
-                    'evidence' => 'file|mimes:jpeg,png,jpg,gif,webp,bmp,tiff|max:10240'
-                ]);
-                try {
-                    $file = $request->file('evidence');
-                    $ext = $file->getClientOriginalExtension();
-                    $filename = $this->buildEvidenceFilename($request->user()->name, $request->user()->id, $ext, $now);
-                    $path = $file->storeAs($folder, $filename, 'public');
-                } catch (\Throwable $e) {
-                    $filename = $this->buildEvidenceFilename($request->user()->name, $request->user()->id, 'jpg', $now);
-                    $path = $folder . '/' . $filename;
-                    Log::warning('Improvement storage failed, using fake path', ['todo_id' => $todo->id, 'error' => $e->getMessage()]);
+            // Check if evidence files are provided
+            $hasEvidence = $request->hasFile('evidence') ||
+                          (is_array($request->file('evidence')) && count(array_filter($request->file('evidence'))) > 0);
+
+            if ($hasEvidence) {
+                // Simple validation that works with both single and array format
+                $files = $request->file('evidence');
+                if (!$files) {
+                    return response()->json([
+                        'message' => 'No evidence files found'
+                    ], 422);
                 }
+
+                // Extract sequence number from original filename if exists
+                $sequenceNumber = null;
+                if ($todo->evidence_path && Storage::disk('public')->exists($todo->evidence_path)) {
+                    $originalFilename = pathinfo($todo->evidence_path, PATHINFO_BASENAME);
+                    // Extract sequence number from filename like "ETD-03-..."
+                    if (preg_match('/ETD-(\d+)-/', $originalFilename, $matches)) {
+                        $sequenceNumber = $matches[1];
+                    }
+                }
+
+                // Handle files - support both single file and array format
+                $evidenceFiles = $files;
+                if (!is_array($evidenceFiles)) {
+                    $evidenceFiles = [$evidenceFiles];
+                }
+
+                // Filter out null files and limit to maximum 5 files
+                $evidenceFiles = array_filter($evidenceFiles, function($file) {
+                    return $file !== null && $file->isValid();
+                });
+                $evidenceFiles = array_slice($evidenceFiles, 0, 5);
+
+                if (empty($evidenceFiles)) {
+                    return response()->json([
+                        'message' => 'No valid evidence files found'
+                    ], 422);
+                }
+
+                // Check maximum 5 files for new uploads
+                if (count($evidenceFiles) > 5) {
+                    return response()->json([
+                        'message' => 'Maximum 5 evidence files allowed'
+                    ], 422);
+                }
+
+                // IMPORTANT: User must re-upload ALL files - delete all old evidence files first
+                if ($todo->evidence_paths && is_array($todo->evidence_paths)) {
+                    foreach ($todo->evidence_paths as $oldPath) {
+                        if (Storage::disk('public')->exists($oldPath)) {
+                            Storage::disk('public')->delete($oldPath);
+                        }
+                    }
+                } elseif ($todo->evidence_path && Storage::disk('public')->exists($todo->evidence_path)) {
+                    Storage::disk('public')->delete($todo->evidence_path);
+                }
+
+                // Store only the new files uploaded by user
+                $storedPaths = [];
+
+                // Prepare filename components
+                $day = $this->getDayNameId($now);
+                $safeUser = preg_replace('/[^A-Za-z0-9\- ]/', '', $request->user()->name ?: 'User');
+                $timePart = $now->format('Y-m-d H.i.s');
+
+                foreach ($evidenceFiles as $index => $file) {
+                    $ext = $file->getClientOriginalExtension();
+
+                    // Generate filename with same sequence number but current timestamp and -Reworked suffix
+                    if ($sequenceNumber) {
+                        $filename = "ETD-{$sequenceNumber}-{$safeUser}-{$day}-{$timePart}-Reworked-{$index}.{$ext}";
+                    } else {
+                        // If no original file, use todo's created_at date for sequence number
+                        $todoCreatedDate = Carbon::parse($todo->created_at);
+                        $seq = str_pad((string) $this->nextDailySequence($request->user()->id, $todoCreatedDate), 2, '0', STR_PAD_LEFT);
+                        $filename = "ETD-{$seq}-{$safeUser}-{$day}-{$timePart}-Reworked-{$index}.{$ext}";
+                    }
+
+                    $path = $file->storeAs($folder, $filename, 'public');
+                    $storedPaths[] = $path;
+                }
+
+                $path = $storedPaths[0] ?? null;
             }
 
             $todo->update([
-                'status' => 'checking',
+                'status' => 'reworked',
                 'submitted_at' => $now,
-                'evidence_path' => $path
+                'evidence_path' => $path,
+                'evidence_paths' => $storedPaths ?? []
             ]);
 
             return response()->json([
@@ -556,9 +848,13 @@ class TodoController extends Controller
             ->get();
 
         $totalTodosToday = $todos->count();
+        $completedTodosToday = $todos->where('status', 'completed')->count();
         $totalMinutes = (int) $todos->sum(function ($t) {
             return (int) ($t->total_work_time ?? 0);
         });
+
+        // Calculate average completion time per todo
+        $averageTimePerTodo = $completedTodosToday > 0 ? round($totalMinutes / $completedTodosToday, 1) : 0;
 
         $low = 0; $medium = 0; $high = 0; $warningsCount = 0; $warningPoints = 0;
         $warnings = \App\Models\TodoWarning::whereHas('todo', function ($q) use ($userId) {
@@ -584,8 +880,9 @@ class TodoController extends Controller
             'user_id' => $userId,
             'date' => $day->toDateString(),
             'total_todos_today' => $totalTodosToday,
-            'total_time_minutes_today' => $totalMinutes,
+            'completed_todos_today' => $completedTodosToday,
             'total_time_formatted_today' => $this->formatDuration($totalMinutes),
+            'average_time_per_todo' => $this->formatDuration($averageTimePerTodo),
             'warnings' => [
                 'count' => $warningsCount,
                 'sum_points' => $warningPoints,
@@ -687,16 +984,28 @@ class TodoController extends Controller
     {
         $todo = Todo::where('user_id', $request->user()->id)->findOrFail($id);
 
-        // Delete evidence file if exists (safe)
-        if ($todo->evidence_path && Storage::disk('public')->exists($todo->evidence_path)) {
-            try {
-                Storage::disk('public')->delete($todo->evidence_path);
-            } catch (\Throwable $e) {
-                Log::warning('Failed to delete evidence file on todo delete', [
-                    'todo_id' => $todo->id,
-                    'path' => $todo->evidence_path,
-                    'error' => $e->getMessage()
-                ]);
+        // Rename evidence files with "Deleted" suffix instead of deleting
+        if ($todo->evidence_paths && is_array($todo->evidence_paths)) {
+            // Handle multiple files
+            $newPaths = [];
+            foreach ($todo->evidence_paths as $index => $path) {
+                if (Storage::disk('public')->exists($path)) {
+                    $newPath = $this->renameEvidenceFile($path, 'Deleted');
+                    if ($newPath) {
+                        $newPaths[] = $newPath;
+                    }
+                }
+            }
+            $todo->evidence_paths = $newPaths;
+            $todo->evidence_path = $newPaths[0] ?? null;
+            $todo->save(); // Save the updated paths before deleting
+        } elseif ($todo->evidence_path && Storage::disk('public')->exists($todo->evidence_path)) {
+            // Handle single file for backward compatibility
+            $newPath = $this->renameEvidenceFile($todo->evidence_path, 'Deleted');
+            if ($newPath) {
+                $todo->evidence_path = $newPath;
+                $todo->evidence_paths = [$newPath];
+                $todo->save(); // Save the updated path before deleting
             }
         }
 
@@ -729,3 +1038,4 @@ class TodoController extends Controller
         return response()->json(['message' => 'Note added successfully', 'todo' => $todo]);
     }
 }
+
