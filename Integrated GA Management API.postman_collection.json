@@ -1,7 +1,7 @@
 {
     "info": {
         "_postman_id": "5ad1ad8c-3b5a-4b44-9a7f-integrated-ga",
-        "name": "Integrated GA Management API - FIXED PRO",
+        "name": "Integrated GA Management API - FIXED",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "item": [
@@ -249,30 +249,15 @@
                                     ]
                                 },
                                 "method": "POST",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
                                 "body": {
-                                    "mode": "formdata",
-                                    "formdata": [
-                                        {
-                                            "key": "title",
-                                            "value": "Ambil paket",
-                                            "type": "text"
-                                        },
-                                        {
-                                            "key": "description",
-                                            "value": "Ambil sebelum jam 12",
-                                            "type": "text"
-                                        },
-                                        {
-                                            "key": "due_date",
-                                            "value": "2025-09-17",
-                                            "type": "text"
-                                        },
-                                        {
-                                            "key": "scheduled_date",
-                                            "value": "2025-09-18",
-                                            "type": "text"
-                                        }
-                                    ]
+                                    "mode": "raw",
+                                    "raw": "{\n  \"title\": \"Ambil paket\",\n  \"description\": \"Ambil sebelum jam 12\",\n  \"due_date\": \"2025-09-17\",\n  \"scheduled_date\": \"2025-09-18\"\n}"
                                 },
                                 "url": {
                                     "raw": "{{base_url}}/api/todos",
@@ -282,7 +267,7 @@
                             }
                         },
                         {
-                            "name": "Update Text (POST + _method=PUT, pre-checking only)",
+                            "name": "Update (PATCH, partial update)",
                             "request": {
                                 "auth": {
                                     "type": "bearer",
@@ -294,36 +279,16 @@
                                         }
                                     ]
                                 },
-                                "method": "POST",
+                                "method": "PATCH",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
                                 "body": {
-                                    "mode": "formdata",
-                                    "formdata": [
-                                        {
-                                            "key": "_method",
-                                            "value": "PUT",
-                                            "type": "text"
-                                        },
-                                        {
-                                            "key": "title",
-                                            "value": "Ambil paket (revisi)",
-                                            "type": "text"
-                                        },
-                                        {
-                                            "key": "description",
-                                            "value": "Ambil sebelum jam 11",
-                                            "type": "text"
-                                        },
-                                        {
-                                            "key": "due_date",
-                                            "value": "2025-09-18",
-                                            "type": "text"
-                                        },
-                                        {
-                                            "key": "scheduled_date",
-                                            "value": "2025-09-19",
-                                            "type": "text"
-                                        }
-                                    ]
+                                    "mode": "raw",
+                                    "raw": "{\n  \"title\": \"Ambil paket (revisi)\",\n  \"description\": \"Ambil sebelum jam 11\",\n  \"due_date\": \"2025-09-18\"\n}"
                                 },
                                 "url": {
                                     "raw": "{{base_url}}/api/todos/1",
@@ -450,42 +415,6 @@
                                     ]
                                 },
                                 "method": "DELETE",
-                                "url": {
-                                    "raw": "{{base_url}}/api/todos/{{todo_id}}",
-                                    "host": ["{{base_url}}"],
-                                    "path": ["api", "todos", "{{todo_id}}"]
-                                }
-                            }
-                        },
-                        {
-                            "name": "Update Evidence (POST + _method=PUT, checking only)",
-                            "request": {
-                                "auth": {
-                                    "type": "bearer",
-                                    "bearer": [
-                                        {
-                                            "key": "token",
-                                            "value": "{{token}}",
-                                            "type": "string"
-                                        }
-                                    ]
-                                },
-                                "method": "POST",
-                                "body": {
-                                    "mode": "formdata",
-                                    "formdata": [
-                                        {
-                                            "key": "_method",
-                                            "value": "PUT",
-                                            "type": "text"
-                                        },
-                                        {
-                                            "key": "evidence",
-                                            "type": "file",
-                                            "src": ""
-                                        }
-                                    ]
-                                },
                                 "url": {
                                     "raw": "{{base_url}}/api/todos/{{todo_id}}",
                                     "host": ["{{base_url}}"],
@@ -679,7 +608,7 @@
                     "name": "GA Review (admin/ga)",
                     "item": [
                         {
-                            "name": "List All (optional ?user_id)",
+                            "name": "List All",
                             "request": {
                                 "auth": {
                                     "type": "bearer",
@@ -693,46 +622,14 @@
                                 },
                                 "method": "GET",
                                 "url": {
-                                    "raw": "{{base_url}}/api/todos/all?user_id={{user_id}}",
+                                    "raw": "{{base_url}}/api/todos/all",
                                     "host": ["{{base_url}}"],
-                                    "path": ["api", "todos", "all"],
-                                    "query": [
-                                        {
-                                            "key": "user_id",
-                                            "value": "{{user_id}}"
-                                        }
-                                    ]
+                                    "path": ["api", "todos", "all"]
                                 }
                             }
                         },
                         {
-                            "name": "List by User",
-                            "request": {
-                                "auth": {
-                                    "type": "bearer",
-                                    "bearer": [
-                                        {
-                                            "key": "token",
-                                            "value": "{{token}}",
-                                            "type": "string"
-                                        }
-                                    ]
-                                },
-                                "method": "GET",
-                                "url": {
-                                    "raw": "{{base_url}}/api/todos/user/{{user_id}}",
-                                    "host": ["{{base_url}}"],
-                                    "path": [
-                                        "api",
-                                        "todos",
-                                        "user",
-                                        "{{user_id}}"
-                                    ]
-                                }
-                            }
-                        },
-                        {
-                            "name": "Evaluate Approve",
+                            "name": "Evaluate Approve (-> completed)",
                             "request": {
                                 "auth": {
                                     "type": "bearer",
@@ -753,7 +650,7 @@
                                 ],
                                 "body": {
                                     "mode": "raw",
-                                    "raw": "{\n  \"action\": \"approve\",\n  \"type\": \"individual\",\n  \"notes\": \"Good job\"\n}"
+                                    "raw": "{\n  \"action\": \"approve\",\n  \"type\": \"individual\",\n  \"notes\": \"OK\"\n}"
                                 },
                                 "url": {
                                     "raw": "{{base_url}}/api/todos/{{todo_id}}/evaluate",
@@ -768,7 +665,7 @@
                             }
                         },
                         {
-                            "name": "Evaluate Rework",
+                            "name": "Evaluate Approve (without notes)",
                             "request": {
                                 "auth": {
                                     "type": "bearer",
@@ -789,7 +686,43 @@
                                 ],
                                 "body": {
                                     "mode": "raw",
-                                    "raw": "{\n  \"action\": \"rework\",\n  \"type\": \"individual\",\n  \"notes\": \"Tolong perbaiki evidencenya\"\n}"
+                                    "raw": "{\n  \"action\": \"approve\",\n  \"type\": \"individual\"\n}"
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/todos/{{todo_id}}/evaluate",
+                                    "host": ["{{base_url}}"],
+                                    "path": [
+                                        "api",
+                                        "todos",
+                                        "{{todo_id}}",
+                                        "evaluate"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Evaluate Rework (-> evaluating)",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "PATCH",
+                                "header": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n  \"action\": \"rework\",\n  \"type\": \"individual\",\n  \"notes\": \"Perbaiki bukti foto\"\n}"
                                 },
                                 "url": {
                                     "raw": "{{base_url}}/api/todos/{{todo_id}}/evaluate",

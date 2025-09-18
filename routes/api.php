@@ -10,6 +10,8 @@ use App\Http\Controllers\AssetController;
 use App\Http\Controllers\MeetingController;
 use App\Http\Controllers\VisitorController;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 /*
 |--------------------------------------------------------------------------
@@ -58,7 +60,10 @@ Route::middleware(['auth:sanctum'])->prefix('todos')->group(function () {
     Route::get('/all', [TodoController::class, 'indexAll'])->middleware('role:admin,ga'); // ?user_id=ID optional
     Route::get('/user/{userId}', [TodoController::class, 'indexByUser'])->middleware('role:admin,ga');
     Route::patch('/{id}/evaluate', [TodoController::class, 'evaluate'])->middleware('role:admin,ga');
+    // Allow form-data POST for evaluate to avoid multipart PATCH issues
+    Route::post('/{id}/evaluate', [TodoController::class, 'evaluate'])->middleware('role:admin,ga');
     Route::get('/evaluate/{userId}', [TodoController::class, 'evaluateOverall'])->middleware('role:admin,ga');
+    Route::get('/warnings/leaderboard', [TodoController::class, 'warningsLeaderboard'])->middleware('role:admin,ga');
 
     // Legacy routes for backward compatibility (deprecated)
     Route::patch('/{id}/check', [TodoController::class, 'check'])->middleware('role:admin,ga');
@@ -109,7 +114,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('visitors')->group(fun
 // ---------------- TEST UPLOAD (for debugging) ----------------
 Route::post('/test-upload', function (Request $request) {
     try {
-        \Log::info('Test Upload Debug', [
+        Log::info('Test Upload Debug', [
             'has_file' => $request->hasFile('evidence'),
             'all_files' => $request->allFiles(),
             'all_data' => $request->all(),
@@ -141,7 +146,7 @@ Route::post('/test-upload', function (Request $request) {
             'full_url' => asset('storage/' . $path)
         ]);
     } catch (\Exception $e) {
-        \Log::error('Test Upload Error', [
+        Log::error('Test Upload Error', [
             'message' => $e->getMessage(),
             'trace' => $e->getTraceAsString()
         ]);
@@ -169,7 +174,7 @@ Route::middleware('auth:sanctum')->group(function () {
         return response()->json([
             'todo' => $todo,
             'user_can_access' => $todo->user_id === $request->user()->id,
-            'file_exists' => $todo->evidence_path ? \Storage::disk('public')->exists($todo->evidence_path) : false,
+            'file_exists' => $todo->evidence_path ? Storage::disk('public')->exists($todo->evidence_path) : false,
             'full_path' => $todo->evidence_path ? storage_path('app/public/' . $todo->evidence_path) : null
         ]);
     });

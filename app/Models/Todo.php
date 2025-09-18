@@ -53,6 +53,12 @@ class Todo extends Model
         return $this->belongsTo(User::class);
     }
 
+    // Relasi: peringatan (warning points) per todo
+    public function warnings()
+    {
+        return $this->hasMany(TodoWarning::class);
+    }
+
     // Accessor untuk created_at
     public function getFormattedCreatedAtAttribute()
     {

@@ -78,24 +78,58 @@ class TodoController extends Controller
     // User: list own todos
     public function index(Request $request)
     {
-        return response()->json($request->user()->todos);
+        $todos = $request->user()->todos()->with('warnings')->latest()->get();
+        return TodoResource::collection($todos);
     }
 
     // GA/Admin: list all todos (optional filter by user_id)
     public function indexAll(Request $request)
     {
-        $query = Todo::with('user')->latest();
+        $query = Todo::with(['user', 'warnings'])->latest();
         if ($request->filled('user_id')) {
             $query->where('user_id', $request->input('user_id'));
         }
-        return TodoResource::collection($query->get());
+        $todos = $query->get();
+
+        // If scoped to a single user, append warning totals meta
+        if ($request->filled('user_id')) {
+            $userId = (int) $request->input('user_id');
+            $totals = \App\Models\TodoWarning::query()
+                ->whereHas('todo', function ($q) use ($userId) { $q->where('user_id', $userId); })
+                ->selectRaw('SUM(points) as total_points, SUM(CASE WHEN level="low" THEN points ELSE 0 END) as low_points, SUM(CASE WHEN level="medium" THEN points ELSE 0 END) as medium_points, SUM(CASE WHEN level="high" THEN points ELSE 0 END) as high_points')
+                ->first();
+
+            return TodoResource::collection($todos)->additional([
+                'warning_totals' => [
+                    'low_points' => (int) ($totals->low_points ?? 0),
+                    'medium_points' => (int) ($totals->medium_points ?? 0),
+                    'high_points' => (int) ($totals->high_points ?? 0),
+                    'total_points' => (int) ($totals->total_points ?? 0),
+                ]
+            ]);
+        }
+
+        return TodoResource::collection($todos);
     }
 
     // GA/Admin: list todos by specific user
     public function indexByUser($userId)
     {
-        $todos = Todo::with('user')->where('user_id', $userId)->latest()->get();
-        return TodoResource::collection($todos);
+        $todos = Todo::with(['user', 'warnings'])->where('user_id', $userId)->latest()->get();
+
+        $totals = \App\Models\TodoWarning::query()
+            ->whereHas('todo', function ($q) use ($userId) { $q->where('user_id', $userId); })
+            ->selectRaw('SUM(points) as total_points, SUM(CASE WHEN level="low" THEN points ELSE 0 END) as low_points, SUM(CASE WHEN level="medium" THEN points ELSE 0 END) as medium_points, SUM(CASE WHEN level="high" THEN points ELSE 0 END) as high_points')
+            ->first();
+
+        return TodoResource::collection($todos)->additional([
+            'warning_totals' => [
+                'low_points' => (int) ($totals->low_points ?? 0),
+                'medium_points' => (int) ($totals->medium_points ?? 0),
+                'high_points' => (int) ($totals->high_points ?? 0),
+                'total_points' => (int) ($totals->total_points ?? 0),
+            ]
+        ]);
     }
 
     // User: create todo
@@ -240,24 +274,30 @@ class TodoController extends Controller
             Storage::disk('public')->makeDirectory($folder, 0755, true);
         }
 
-        if ($request->hasFile('evidence')) {
-            $request->validate([
-                'evidence' => 'file|mimes:jpeg,png,jpg,gif,webp,bmp,tiff|max:10240'
+        // Evidence is mandatory for submitForChecking
+        if (!$request->hasFile('evidence')) {
+            return response()->json([
+                'message' => 'Evidence file is required when submitting for checking'
+            ], 422);
+        }
+
+        $request->validate([
+            'evidence' => 'required|file|mimes:jpeg,png,jpg,gif,webp,bmp,tiff|max:10240'
+        ]);
+
+        try {
+            $file = $request->file('evidence');
+            $ext = $file->getClientOriginalExtension();
+            $filename = $this->buildEvidenceFilename($request->user()->name, $request->user()->id, $ext, $now);
+            $path = $file->storeAs($folder, $filename, 'public');
+        } catch (\Throwable $e) {
+            Log::error('Evidence storage failed on submitForChecking', [
+                'todo_id' => $todo->id,
+                'error' => $e->getMessage()
             ]);
-            try {
-                $file = $request->file('evidence');
-                $ext = $file->getClientOriginalExtension();
-                $filename = $this->buildEvidenceFilename($request->user()->name, $request->user()->id, $ext, $now);
-                $path = $file->storeAs($folder, $filename, 'public');
-            } catch (\Throwable $e) {
-                $ext = 'jpg';
-                $filename = $this->buildEvidenceFilename($request->user()->name, $request->user()->id, $ext, $now);
-                $path = $folder . '/' . $filename; // fake path
-                Log::warning('Evidence storage failed, using fake path', ['todo_id' => $todo->id, 'error' => $e->getMessage()]);
-            }
-        } else {
-            $filename = $this->buildEvidenceFilename($request->user()->name, $request->user()->id, 'jpg', $now);
-            $path = $folder . '/' . $filename;
+            return response()->json([
+                'message' => 'Failed to store evidence file'
+            ], 500);
         }
 
         $payload = [
@@ -288,7 +328,9 @@ class TodoController extends Controller
         $data = $request->validate([
             'action' => 'required|in:approve,rework',
             'type' => 'required|in:individual,overall',
-            'notes' => 'nullable|string|max:500'
+            'notes' => 'nullable|string|max:500',
+            'warning_points' => 'nullable|integer|min:0|max:300',
+            'warning_note' => 'nullable|string|max:500'
         ]);
 
         if (!in_array($todo->status, ['checking', 'evaluating'])) {
@@ -299,6 +341,8 @@ class TodoController extends Controller
         $checkerRole = $request->user()->role;
         $checkerDisplay = "{$checkerName} ({$checkerRole})";
 
+        $createdWarning = null;
+
         if ($data['action'] === 'approve') {
             $todo->update([
                 'status' => 'completed',
@@ -306,6 +350,25 @@ class TodoController extends Controller
                 'checked_by' => $request->user()->id,
                 'checker_display' => $checkerDisplay
             ]);
+
+            $points = (int)($data['warning_points'] ?? 0);
+            if ($points > 0) {
+                $level = null;
+                if ($points >= 1 && $points <= 35) {
+                    $level = 'low';
+                } elseif ($points >= 36 && $points <= 65) {
+                    $level = 'medium';
+                } elseif ($points >= 66) {
+                    $level = 'high';
+                }
+
+                $createdWarning = $todo->warnings()->create([
+                    'evaluator_id' => $request->user()->id,
+                    'points' => $points,
+                    'level' => $level,
+                    'note' => $data['warning_note'] ?? null,
+                ]);
+            }
         } else {
             $todo->update([
                 'status' => 'evaluating',
@@ -317,7 +380,13 @@ class TodoController extends Controller
 
         return response()->json([
             'message' => 'Evaluation recorded',
-            'todo' => new TodoResource($todo)
+            'todo' => new TodoResource($todo),
+            'warning' => $createdWarning ? [
+                'points' => (int) $createdWarning->points,
+                'level' => $createdWarning->level,
+                'note' => $createdWarning->note,
+                'created_at' => $createdWarning->created_at,
+            ] : null
         ]);
     }
 
@@ -376,23 +445,141 @@ class TodoController extends Controller
     // GA: overall performance evaluation
     public function evaluateOverall(Request $request, $userId)
     {
-        $todos = Todo::where('user_id', $userId)->get();
+        $date = $request->input('date');
+        $day = $date ? Carbon::parse($date, 'Asia/Jakarta') : Carbon::now('Asia/Jakarta');
+        $startJakarta = $day->copy()->startOfDay();
+        $endJakarta = $day->copy()->endOfDay();
+        $startUtc = $startJakarta->copy()->timezone('UTC');
+        $endUtc = $endJakarta->copy()->timezone('UTC');
 
-        $stats = [
-            'total_todos' => $todos->count(),
-            'completed_todos' => $todos->where('status', 'completed')->count(),
-            'in_progress_todos' => $todos->where('status', 'in_progress')->count(),
-            'checking_todos' => $todos->where('status', 'checking')->count(),
-            'not_started_todos' => $todos->where('status', 'not_started')->count(),
-            'completion_rate' => $todos->count() > 0 ?
-                round(($todos->where('status', 'completed')->count() / $todos->count()) * 100, 2) :
-                0
-        ];
+        $todos = Todo::where('user_id', $userId)
+            ->whereDate('submitted_at', $day->toDateString())
+            ->get();
+
+        $totalTodosToday = $todos->count();
+        $totalMinutes = (int) $todos->sum(function ($t) {
+            return (int) ($t->total_work_time ?? 0);
+        });
+
+        $low = 0; $medium = 0; $high = 0; $warningsCount = 0; $warningPoints = 0;
+        $warnings = \App\Models\TodoWarning::whereHas('todo', function ($q) use ($userId) {
+                $q->where('user_id', $userId);
+            })
+            ->whereBetween('created_at', [$startUtc, $endUtc])
+            ->get();
+        foreach ($warnings as $w) {
+            $warningsCount++;
+            $warningPoints += (int) $w->points;
+            if ($w->level === 'low') $low++;
+            elseif ($w->level === 'medium') $medium++;
+            elseif ($w->level === 'high') $high++;
+        }
+
+        // Example performance score: 100 - clamp(sum(points)/3, 0..100)
+        $scorePenalty = (int) floor($warningPoints / 3);
+        if ($scorePenalty > 100) $scorePenalty = 100;
+        $performanceScore = max(0, 100 - $scorePenalty);
 
         return response()->json([
-            'message' => 'Overall todo performance evaluation',
+            'message' => 'Overall todo performance evaluation (daily)',
             'user_id' => $userId,
-            'stats' => $stats
+            'date' => $day->toDateString(),
+            'total_todos_today' => $totalTodosToday,
+            'total_time_minutes_today' => $totalMinutes,
+            'total_time_formatted_today' => $this->formatDuration($totalMinutes),
+            'warnings' => [
+                'count' => $warningsCount,
+                'sum_points' => $warningPoints,
+                'breakdown' => [
+                    'low' => $low,
+                    'medium' => $medium,
+                    'high' => $high,
+                ],
+            ],
+            'performance_score' => $performanceScore,
+        ]);
+    }
+
+    // Admin/GA: monthly leaderboard of warning points
+    public function warningsLeaderboard(Request $request)
+    {
+        $request->validate([
+            'month' => 'nullable|date_format:Y-m',
+            'search' => 'nullable|string',
+            'user_id' => 'nullable|integer',
+            'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|min:1|max:100',
+        ]);
+
+        $month = $request->input('month');
+        $perPage = (int)($request->input('per_page', 20));
+        $search = $request->input('search');
+        $filterUserId = $request->input('user_id');
+
+        $start = $month ? Carbon::createFromFormat('Y-m', $month, 'Asia/Jakarta')->startOfMonth() : now('Asia/Jakarta')->startOfMonth();
+        $end = (clone $start)->endOfMonth();
+        $startUtc = $start->copy()->timezone('UTC');
+        $endUtc = $end->copy()->timezone('UTC');
+
+        $query = \App\Models\TodoWarning::query()
+            ->selectRaw('users.id as user_id, users.name as user_name, users.role as user_role, SUM(todo_warnings.points) as total_points, COUNT(todo_warnings.id) as count_warnings, MAX(todo_warnings.created_at) as last_warning_at')
+            ->join('todos', 'todo_warnings.todo_id', '=', 'todos.id')
+            ->join('users', 'todos.user_id', '=', 'users.id')
+            ->whereBetween('todo_warnings.created_at', [$startUtc, $endUtc])
+            ->groupBy('users.id', 'users.name', 'users.role');
+
+        if ($search) {
+            $query->where('users.name', 'like', "%{$search}%");
+        }
+        if ($filterUserId) {
+            $query->where('users.id', $filterUserId);
+        }
+
+        $paginator = $query->orderByDesc('total_points')->paginate($perPage)->withQueryString();
+
+        $rankStart = ($paginator->currentPage() - 1) * $paginator->perPage();
+        $data = [];
+        foreach ($paginator->items() as $index => $row) {
+            // Format total warning points (misal: 25/300)
+            $totalPoints = (int) $row->total_points;
+            $warningDisplay = "{$totalPoints}/300";
+
+            // Format waktu terakhir mendapat peringatan
+            $lastWarningAt = null;
+            if ($row->last_warning_at) {
+                $lastWarning = Carbon::parse($row->last_warning_at)->timezone('Asia/Jakarta');
+                $dayNames = [
+                    'Sunday' => 'Minggu',
+                    'Monday' => 'Senin',
+                    'Tuesday' => 'Selasa',
+                    'Wednesday' => 'Rabu',
+                    'Thursday' => 'Kamis',
+                    'Friday' => 'Jumat',
+                    'Saturday' => 'Sabtu'
+                ];
+                $dayName = $dayNames[$lastWarning->format('l')];
+                $lastWarningAt = $dayName . ', ' . $lastWarning->format('d F Y H:i:s');
+            }
+
+            $data[] = [
+                'rank' => $rankStart + $index + 1,
+                'user_id' => $row->user_id,
+                'user_name' => $row->user_name,
+                'user_role' => $row->user_role,
+                'warning_points' => $warningDisplay,
+                'last_warning_at' => $lastWarningAt,
+            ];
+        }
+
+        return response()->json([
+            'month' => $start->format('Y-m'),
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'last_page' => $paginator->lastPage(),
+            ],
+            'data' => $data,
         ]);
     }
 
