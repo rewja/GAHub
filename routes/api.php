@@ -72,11 +72,13 @@ Route::middleware(['auth:sanctum'])->prefix('todos')->group(function () {
 });
 
 // ---------------- REQUESTS ----------------
-// User: create request
+// User: manage own requests
 Route::middleware(['auth:sanctum', 'role:user'])->prefix('requests')->group(function () {
     Route::get('/mine', [RequestItemController::class, 'mine']);
     Route::get('/stats', [RequestItemController::class, 'statsUser']);
     Route::post('/', [RequestItemController::class, 'store']);
+    Route::patch('/{id}', [RequestItemController::class, 'update']);
+    Route::delete('/{id}', [RequestItemController::class, 'destroy']);
 });
 // Admin: manage requests
 Route::middleware(['auth:sanctum', 'role:admin'])->prefix('requests')->group(function () {

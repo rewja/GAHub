@@ -121,18 +121,22 @@ class TodoController extends Controller
             ->limit(30)
             ->get();
 
+        $driver = \DB::connection()->getDriverName();
+        $monthExpr = $driver === 'mysql' ? 'DATE_FORMAT(created_at, "%Y-%m")' : 'strftime("%Y-%m", created_at)';
+        $yearExpr = $driver === 'mysql' ? 'DATE_FORMAT(created_at, "%Y")'   : 'strftime("%Y", created_at)';
+
         $monthly = \DB::table('todos')
-            ->selectRaw('strftime("%Y-%m", created_at) as ym, COUNT(*) as total, SUM(CASE WHEN status = "completed" THEN 1 ELSE 0 END) as completed')
+            ->selectRaw("{$monthExpr} as ym, COUNT(*) as total, SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed")
             ->where('user_id', $userId)
-            ->groupByRaw('strftime("%Y-%m", created_at)')
+            ->groupByRaw($monthExpr)
             ->orderByRaw('ym DESC')
             ->limit(12)
             ->get();
 
         $yearly = \DB::table('todos')
-            ->selectRaw('strftime("%Y", created_at) as y, COUNT(*) as total, SUM(CASE WHEN status = "completed" THEN 1 ELSE 0 END) as completed')
+            ->selectRaw("{$yearExpr} as y, COUNT(*) as total, SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed")
             ->where('user_id', $userId)
-            ->groupByRaw('strftime("%Y", created_at)')
+            ->groupByRaw($yearExpr)
             ->orderByRaw('y DESC')
             ->limit(5)
             ->get();
@@ -190,16 +194,20 @@ class TodoController extends Controller
             ->limit(30)
             ->get();
 
+        $driver = \DB::connection()->getDriverName();
+        $monthExpr = $driver === 'mysql' ? 'DATE_FORMAT(created_at, "%Y-%m")' : 'strftime("%Y-%m", created_at)';
+        $yearExpr = $driver === 'mysql' ? 'DATE_FORMAT(created_at, "%Y")'   : 'strftime("%Y", created_at)';
+
         $monthly = \DB::table('todos')
-            ->selectRaw('strftime("%Y-%m", created_at) as ym, COUNT(*) as total, SUM(CASE WHEN status = "completed" THEN 1 ELSE 0 END) as completed')
-            ->groupByRaw('strftime("%Y-%m", created_at)')
+            ->selectRaw("{$monthExpr} as ym, COUNT(*) as total, SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed")
+            ->groupByRaw($monthExpr)
             ->orderByRaw('ym DESC')
             ->limit(12)
             ->get();
 
         $yearly = \DB::table('todos')
-            ->selectRaw('strftime("%Y", created_at) as y, COUNT(*) as total, SUM(CASE WHEN status = "completed" THEN 1 ELSE 0 END) as completed')
-            ->groupByRaw('strftime("%Y", created_at)')
+            ->selectRaw("{$yearExpr} as y, COUNT(*) as total, SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed")
+            ->groupByRaw($yearExpr)
             ->orderByRaw('y DESC')
             ->limit(5)
             ->get();

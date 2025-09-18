@@ -219,16 +219,20 @@ class VisitorController extends Controller
             ->limit(30)
             ->get();
 
+        $driver = \DB::connection()->getDriverName();
+        $monthExpr = $driver === 'mysql' ? 'DATE_FORMAT(check_in, "%Y-%m")' : 'strftime("%Y-%m", check_in)';
+        $yearExpr = $driver === 'mysql' ? 'DATE_FORMAT(check_in, "%Y")'   : 'strftime("%Y", check_in)';
+
         $monthly = \DB::table('visitors')
-            ->selectRaw('strftime("%Y-%m", check_in) as ym, COUNT(*) as total')
-            ->groupByRaw('strftime("%Y-%m", check_in)')
+            ->selectRaw("{$monthExpr} as ym, COUNT(*) as total")
+            ->groupByRaw($monthExpr)
             ->orderByRaw('ym DESC')
             ->limit(12)
             ->get();
 
         $yearly = \DB::table('visitors')
-            ->selectRaw('strftime("%Y", check_in) as y, COUNT(*) as total')
-            ->groupByRaw('strftime("%Y", check_in)')
+            ->selectRaw("{$yearExpr} as y, COUNT(*) as total")
+            ->groupByRaw($yearExpr)
             ->orderByRaw('y DESC')
             ->limit(5)
             ->get();

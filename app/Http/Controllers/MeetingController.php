@@ -33,23 +33,33 @@ class MeetingController extends Controller
             ->limit(30)
             ->get();
 
+        $driver = \DB::connection()->getDriverName();
+        $monthExpr = $driver === 'mysql' ? 'DATE_FORMAT(start_time, "%Y-%m")' : 'strftime("%Y-%m", start_time)';
+        $yearExpr = $driver === 'mysql' ? 'DATE_FORMAT(start_time, "%Y")'   : 'strftime("%Y", start_time)';
+
         $monthly = (clone $base)
-            ->selectRaw('strftime("%Y-%m", start_time) as ym, COUNT(*) as total')
-            ->groupByRaw('strftime("%Y-%m", start_time)')
+            ->selectRaw("{$monthExpr} as ym, COUNT(*) as total")
+            ->groupByRaw($monthExpr)
             ->orderByRaw('ym DESC')
             ->limit(12)
             ->get();
 
         $yearly = (clone $base)
-            ->selectRaw('strftime("%Y", start_time) as y, COUNT(*) as total')
-            ->groupByRaw('strftime("%Y", start_time)')
+            ->selectRaw("{$yearExpr} as y, COUNT(*) as total")
+            ->groupByRaw($yearExpr)
             ->orderByRaw('y DESC')
             ->limit(5)
             ->get();
 
-        $avgDuration = (clone $base)
-            ->selectRaw('AVG((julianday(end_time) - julianday(start_time)) * 24 * 60) as avg_minutes')
-            ->value('avg_minutes');
+        if ($driver === 'mysql') {
+            $avgDuration = (clone $base)
+                ->selectRaw('AVG(TIMESTAMPDIFF(MINUTE, start_time, end_time)) as avg_minutes')
+                ->value('avg_minutes');
+        } else {
+            $avgDuration = (clone $base)
+                ->selectRaw('AVG((julianday(end_time) - julianday(start_time)) * 24 * 60) as avg_minutes')
+                ->value('avg_minutes');
+        }
 
         $topRooms = (clone $base)
             ->selectRaw('room_name, COUNT(*) as total')

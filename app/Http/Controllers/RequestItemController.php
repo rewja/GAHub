@@ -30,6 +30,24 @@ class RequestItemController extends Controller
         return response()->json(['message' => 'Request created successfully', 'request' => $req], 201);
     }
 
+    // User: update own request (only when pending)
+    public function update(Request $request, $id)
+    {
+        $req = RequestItem::where('user_id', $request->user()->id)->findOrFail($id);
+        if ($req->status !== 'pending') {
+            return response()->json(['message' => 'Only pending requests can be updated'], 422);
+        }
+
+        $data = $request->validate([
+            'item_name' => 'sometimes|required|string|max:200',
+            'quantity' => 'sometimes|required|integer|min:1',
+            'reason' => 'nullable|string',
+        ]);
+
+        $req->update($data);
+        return response()->json(['message' => 'Request updated', 'request' => $req]);
+    }
+
     // GA: list all requests
     public function index()
     {
@@ -48,18 +66,22 @@ class RequestItemController extends Controller
             ->limit(30)
             ->get();
 
+        $driver = \DB::connection()->getDriverName();
+        $monthExpr = $driver === 'mysql' ? 'DATE_FORMAT(created_at, "%Y-%m")' : 'strftime("%Y-%m", created_at)';
+        $yearExpr = $driver === 'mysql' ? 'DATE_FORMAT(created_at, "%Y")'   : 'strftime("%Y", created_at)';
+
         $monthly = \DB::table('request_items')
-            ->selectRaw('strftime("%Y-%m", created_at) as ym, COUNT(*) as total')
+            ->selectRaw("{$monthExpr} as ym, COUNT(*) as total")
             ->where('user_id', $userId)
-            ->groupByRaw('strftime("%Y-%m", created_at)')
+            ->groupByRaw($monthExpr)
             ->orderByRaw('ym DESC')
             ->limit(12)
             ->get();
 
         $yearly = \DB::table('request_items')
-            ->selectRaw('strftime("%Y", created_at) as y, COUNT(*) as total')
+            ->selectRaw("{$yearExpr} as y, COUNT(*) as total")
             ->where('user_id', $userId)
-            ->groupByRaw('strftime("%Y", created_at)')
+            ->groupByRaw($yearExpr)
             ->orderByRaw('y DESC')
             ->limit(5)
             ->get();
@@ -88,16 +110,20 @@ class RequestItemController extends Controller
             ->limit(30)
             ->get();
 
+        $driver = \DB::connection()->getDriverName();
+        $monthExpr = $driver === 'mysql' ? 'DATE_FORMAT(created_at, "%Y-%m")' : 'strftime("%Y-%m", created_at)';
+        $yearExpr = $driver === 'mysql' ? 'DATE_FORMAT(created_at, "%Y")'   : 'strftime("%Y", created_at)';
+
         $monthly = \DB::table('request_items')
-            ->selectRaw('strftime("%Y-%m", created_at) as ym, COUNT(*) as total')
-            ->groupByRaw('strftime("%Y-%m", created_at)')
+            ->selectRaw("{$monthExpr} as ym, COUNT(*) as total")
+            ->groupByRaw($monthExpr)
             ->orderByRaw('ym DESC')
             ->limit(12)
             ->get();
 
         $yearly = \DB::table('request_items')
-            ->selectRaw('strftime("%Y", created_at) as y, COUNT(*) as total')
-            ->groupByRaw('strftime("%Y", created_at)')
+            ->selectRaw("{$yearExpr} as y, COUNT(*) as total")
+            ->groupByRaw($yearExpr)
             ->orderByRaw('y DESC')
             ->limit(5)
             ->get();
@@ -137,5 +163,16 @@ class RequestItemController extends Controller
         ]);
 
         return response()->json(['message' => 'Request rejected', 'request' => $req]);
+    }
+
+    // User: delete own request (only when pending)
+    public function destroy(Request $request, $id)
+    {
+        $req = RequestItem::where('user_id', $request->user()->id)->findOrFail($id);
+        if ($req->status !== 'pending') {
+            return response()->json(['message' => 'Only pending requests can be deleted'], 422);
+        }
+        $req->delete();
+        return response()->json(['message' => 'Request deleted']);
     }
 }
