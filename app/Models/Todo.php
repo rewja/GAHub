@@ -23,6 +23,7 @@ class Todo extends Model
         'total_work_time',
         'total_work_time_formatted',
         'evidence_path',  // Tambahkan ini
+        'evidence_paths', // Tambahkan ini untuk multiple files
         'checked_by',
         'notes'
     ];
@@ -45,6 +46,11 @@ class Todo extends Model
         'scheduled_date',
         'started_at',
         'submitted_at'
+    ];
+
+    // Cast untuk evidence_paths sebagai array
+    protected $casts = [
+        'evidence_paths' => 'array',
     ];
 
     // Relasi dengan user

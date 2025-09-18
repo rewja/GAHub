@@ -249,15 +249,30 @@
                                     ]
                                 },
                                 "method": "POST",
-                                "header": [
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json"
-                                    }
-                                ],
                                 "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n  \"title\": \"Ambil paket\",\n  \"description\": \"Ambil sebelum jam 12\",\n  \"due_date\": \"2025-09-17\",\n  \"scheduled_date\": \"2025-09-18\"\n}"
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "title",
+                                            "value": "Ambil paket",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "description",
+                                            "value": "Ambil sebelum jam 12",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "due_date",
+                                            "value": "2025-09-17",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "scheduled_date",
+                                            "value": "2025-09-18",
+                                            "type": "text"
+                                        }
+                                    ]
                                 },
                                 "url": {
                                     "raw": "{{base_url}}/api/todos",
@@ -267,7 +282,7 @@
                             }
                         },
                         {
-                            "name": "Update (PATCH, partial update)",
+                            "name": "Update Text (POST + _method=PUT)",
                             "request": {
                                 "auth": {
                                     "type": "bearer",
@@ -279,21 +294,113 @@
                                         }
                                     ]
                                 },
-                                "method": "PATCH",
-                                "header": [
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json"
-                                    }
-                                ],
+                                "method": "POST",
                                 "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n  \"title\": \"Ambil paket (revisi)\",\n  \"description\": \"Ambil sebelum jam 11\",\n  \"due_date\": \"2025-09-18\"\n}"
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "_method",
+                                            "value": "PUT",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "title",
+                                            "value": "Ambil paket (revisi)",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "description",
+                                            "value": "Ambil sebelum jam 11",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "due_date",
+                                            "value": "2025-09-18",
+                                            "type": "text"
+                                        }
+                                    ]
                                 },
                                 "url": {
-                                    "raw": "{{base_url}}/api/todos/1",
+                                    "raw": "{{base_url}}/api/todos/{{todo_id}}",
                                     "host": ["{{base_url}}"],
-                                    "path": ["api", "todos", "1"]
+                                    "path": ["api", "todos", "{{todo_id}}"]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Update Evidence (POST + _method=PUT)",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "POST",
+                                "body": {
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "_method",
+                                            "value": "PUT",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "evidence",
+                                            "type": "file",
+                                            "src": []
+                                        }
+                                    ]
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/todos/{{todo_id}}",
+                                    "host": ["{{base_url}}"],
+                                    "path": ["api", "todos", "{{todo_id}}"]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Update Evidence - Multiple Files (POST + _method=PUT)",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "POST",
+                                "body": {
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "_method",
+                                            "value": "PUT",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "evidence[]",
+                                            "type": "file",
+                                            "src": []
+                                        },
+                                        {
+                                            "key": "evidence[]",
+                                            "type": "file",
+                                            "src": []
+                                        }
+                                    ]
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/todos/{{todo_id}}",
+                                    "host": ["{{base_url}}"],
+                                    "path": ["api", "todos", "{{todo_id}}"]
                                 }
                             }
                         },
@@ -361,6 +468,48 @@
                             }
                         },
                         {
+                            "name": "Submit for Checking - Multiple Files (FIXED - POST)",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "evidence[]",
+                                            "type": "file",
+                                            "src": []
+                                        },
+                                        {
+                                            "key": "evidence[]",
+                                            "type": "file",
+                                            "src": []
+                                        }
+                                    ]
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/todos/{{todo_id}}/submit",
+                                    "host": ["{{base_url}}"],
+                                    "path": [
+                                        "api",
+                                        "todos",
+                                        "{{todo_id}}",
+                                        "submit"
+                                    ]
+                                }
+                            }
+                        },
+                        {
                             "name": "Submit Improvement (FIXED - POST)",
                             "request": {
                                 "auth": {
@@ -379,6 +528,52 @@
                                     "formdata": [
                                         {
                                             "key": "evidence",
+                                            "type": "file",
+                                            "src": []
+                                        },
+                                        {
+                                            "key": "notes",
+                                            "value": "Sudah diperbaiki sesuai catatan",
+                                            "type": "text"
+                                        }
+                                    ]
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/todos/{{todo_id}}/improve",
+                                    "host": ["{{base_url}}"],
+                                    "path": [
+                                        "api",
+                                        "todos",
+                                        "{{todo_id}}",
+                                        "improve"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Submit Improvement - Multiple Files (FIXED - POST)",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "POST",
+                                "body": {
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "evidence[]",
+                                            "type": "file",
+                                            "src": []
+                                        },
+                                        {
+                                            "key": "evidence[]",
                                             "type": "file",
                                             "src": []
                                         },
@@ -531,7 +726,7 @@
                             }
                         },
                         {
-                            "name": "Evaluate - Approve (checking -> completed)",
+                            "name": "Evaluate - Approve (no warning)",
                             "request": {
                                 "auth": {
                                     "type": "bearer",
@@ -543,16 +738,82 @@
                                         }
                                     ]
                                 },
-                                "method": "PATCH",
-                                "header": [
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json"
-                                    }
-                                ],
+                                "method": "POST",
                                 "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n  \"action\": \"approve\",\n  \"type\": \"individual\",\n  \"notes\": \"OK\"\n}"
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "action",
+                                            "value": "approve",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "type",
+                                            "value": "individual",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "notes",
+                                            "value": "OK",
+                                            "type": "text"
+                                        }
+                                    ]
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/todos/{{todo_id}}/evaluate",
+                                    "host": ["{{base_url}}"],
+                                    "path": [
+                                        "api",
+                                        "todos",
+                                        "{{todo_id}}",
+                                        "evaluate"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Evaluate - Approve (with warning)",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "POST",
+                                "body": {
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "action",
+                                            "value": "approve",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "type",
+                                            "value": "individual",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "notes",
+                                            "value": "OK",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "warning_points",
+                                            "value": "25",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "warning_note",
+                                            "value": "Terlambat submit",
+                                            "type": "text"
+                                        }
+                                    ]
                                 },
                                 "url": {
                                     "raw": "{{base_url}}/api/todos/{{todo_id}}/evaluate",
@@ -579,16 +840,26 @@
                                         }
                                     ]
                                 },
-                                "method": "PATCH",
-                                "header": [
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json"
-                                    }
-                                ],
+                                "method": "POST",
                                 "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n  \"action\": \"rework\",\n  \"type\": \"individual\",\n  \"notes\": \"Perbaiki bukti foto\"\n}"
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "action",
+                                            "value": "rework",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "type",
+                                            "value": "individual",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "notes",
+                                            "value": "Perbaiki bukti foto",
+                                            "type": "text"
+                                        }
+                                    ]
                                 },
                                 "url": {
                                     "raw": "{{base_url}}/api/todos/{{todo_id}}/evaluate",
@@ -629,7 +900,7 @@
                             }
                         },
                         {
-                            "name": "Evaluate Approve (-> completed)",
+                            "name": "List by User",
                             "request": {
                                 "auth": {
                                     "type": "bearer",
@@ -641,16 +912,108 @@
                                         }
                                     ]
                                 },
-                                "method": "PATCH",
-                                "header": [
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json"
-                                    }
-                                ],
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{base_url}}/api/todos/user/{{user_id}}",
+                                    "host": ["{{base_url}}"],
+                                    "path": [
+                                        "api",
+                                        "todos",
+                                        "user",
+                                        "{{user_id}}"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Evaluate Approve (no warning)",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "POST",
                                 "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n  \"action\": \"approve\",\n  \"type\": \"individual\",\n  \"notes\": \"OK\"\n}"
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "action",
+                                            "value": "approve",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "type",
+                                            "value": "individual",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "notes",
+                                            "value": "OK",
+                                            "type": "text"
+                                        }
+                                    ]
+                                },
+                                "url": {
+                                    "raw": "{{base_url}}/api/todos/{{todo_id}}/evaluate",
+                                    "host": ["{{base_url}}"],
+                                    "path": [
+                                        "api",
+                                        "todos",
+                                        "{{todo_id}}",
+                                        "evaluate"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Evaluate Approve (with warning)",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "POST",
+                                "body": {
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "action",
+                                            "value": "approve",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "type",
+                                            "value": "individual",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "notes",
+                                            "value": "OK",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "warning_points",
+                                            "value": "25",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "warning_note",
+                                            "value": "Terlambat submit",
+                                            "type": "text"
+                                        }
+                                    ]
                                 },
                                 "url": {
                                     "raw": "{{base_url}}/api/todos/{{todo_id}}/evaluate",
@@ -713,16 +1076,26 @@
                                         }
                                     ]
                                 },
-                                "method": "PATCH",
-                                "header": [
-                                    {
-                                        "key": "Content-Type",
-                                        "value": "application/json"
-                                    }
-                                ],
+                                "method": "POST",
                                 "body": {
-                                    "mode": "raw",
-                                    "raw": "{\n  \"action\": \"rework\",\n  \"type\": \"individual\",\n  \"notes\": \"Perbaiki bukti foto\"\n}"
+                                    "mode": "formdata",
+                                    "formdata": [
+                                        {
+                                            "key": "action",
+                                            "value": "rework",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "type",
+                                            "value": "individual",
+                                            "type": "text"
+                                        },
+                                        {
+                                            "key": "notes",
+                                            "value": "Perbaiki bukti foto",
+                                            "type": "text"
+                                        }
+                                    ]
                                 },
                                 "url": {
                                     "raw": "{{base_url}}/api/todos/{{todo_id}}/evaluate",
@@ -758,6 +1131,54 @@
                                         "todos",
                                         "evaluate",
                                         "{{user_id}}"
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "name": "Monthly Leaderboard (warning points)",
+                            "request": {
+                                "auth": {
+                                    "type": "bearer",
+                                    "bearer": [
+                                        {
+                                            "key": "token",
+                                            "value": "{{token}}",
+                                            "type": "string"
+                                        }
+                                    ]
+                                },
+                                "method": "GET",
+                                "url": {
+                                    "raw": "{{base_url}}/api/todos/warnings/leaderboard?month={{month}}&search={{search}}&page={{page}}&per_page={{per_page}}",
+                                    "host": ["{{base_url}}"],
+                                    "path": [
+                                        "api",
+                                        "todos",
+                                        "warnings",
+                                        "leaderboard"
+                                    ],
+                                    "query": [
+                                        {
+                                            "key": "month",
+                                            "value": "{{month}}",
+                                            "description": "Format: YYYY-MM (e.g., 2025-09)"
+                                        },
+                                        {
+                                            "key": "search",
+                                            "value": "{{search}}",
+                                            "description": "Search by user name"
+                                        },
+                                        {
+                                            "key": "page",
+                                            "value": "{{page}}",
+                                            "description": "Page number"
+                                        },
+                                        {
+                                            "key": "per_page",
+                                            "value": "{{per_page}}",
+                                            "description": "Items per page (max 100)"
+                                        }
                                     ]
                                 }
                             }
@@ -1369,6 +1790,22 @@
         {
             "key": "meeting_id",
             "value": "1"
+        },
+        {
+            "key": "month",
+            "value": "2025-09"
+        },
+        {
+            "key": "search",
+            "value": ""
+        },
+        {
+            "key": "page",
+            "value": "1"
+        },
+        {
+            "key": "per_page",
+            "value": "20"
         }
     ]
 }
