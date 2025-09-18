@@ -194,5 +194,99 @@ class VisitorController extends Controller
         ]);
     }
 
-    
+    public function update(Request $request, $id)
+    {
+        try {
+            $visitor = Visitor::findOrFail($id);
+
+            $data = $request->validate([
+                'name' => 'sometimes|required|string|max:150',
+                'meet_with' => 'sometimes|required|string|max:150',
+                'purpose' => 'sometimes|required|string|max:300',
+                'origin' => 'nullable|string|max:150',
+                'ktp_image' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
+                'face_image' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
+            ]);
+
+            if (isset($data['name'])) {
+                $data['name'] = Str::title(trim($data['name']));
+            }
+
+            $now = Carbon::now('Asia/Jakarta');
+            $year = $now->format('Y');
+            $month = $now->format('m');
+            $day = $now->format('d');
+            $safeName = trim(preg_replace('/[^A-Za-z0-9 \-]/', '', $data['name'] ?? $visitor->name));
+            $folder = "visitors/{$year}/{$month}/{$day}/{$safeName}-01";
+            $faceFolder = $folder . '/face';
+            $ktpFolder = $folder . '/ktp';
+            if (!Storage::disk('public')->exists($faceFolder)) {
+                Storage::disk('public')->makeDirectory($faceFolder);
+            }
+            if (!Storage::disk('public')->exists($ktpFolder)) {
+                Storage::disk('public')->makeDirectory($ktpFolder);
+            }
+
+            if ($request->hasFile('ktp_image')) {
+                $timePart = $now->format('Ymd_His');
+                $ktpExt = $request->file('ktp_image')->getClientOriginalExtension();
+                $ktpFilename = "KTP-{$timePart}-{$safeName}.{$ktpExt}";
+                $ktpPath = $request->file('ktp_image')->storeAs($ktpFolder, $ktpFilename, 'public');
+                $data['ktp_image_path'] = $ktpPath;
+                $data['ktp_ocr'] = app('app.services.ocr')->extract($ktpPath);
+            }
+
+            if ($request->hasFile('face_image')) {
+                $timePart = $now->format('Ymd_His');
+                $faceExt = $request->file('face_image')->getClientOriginalExtension();
+                $faceFilename = "FACE-{$timePart}-{$safeName}.{$faceExt}";
+                $facePath = $request->file('face_image')->storeAs($faceFolder, $faceFilename, 'public');
+                $data['face_image_path'] = $facePath;
+                $data['face_verified'] = app('app.services.face')->verify($facePath, $data['name'] ?? $visitor->name);
+            }
+
+            $visitor->update($data);
+
+            return response()->json([
+                'message' => 'Visitor updated',
+                'visitor' => new VisitorResource($visitor->fresh()),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Visitor update failed', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+            return response()->json([
+                'message' => 'Internal server error',
+            ], 500);
+        }
+    }
+
+    public function destroy($id)
+    {
+        try {
+            $visitor = Visitor::findOrFail($id);
+
+            // Attempt to remove stored files if exist
+            if ($visitor->ktp_image_path) {
+                Storage::disk('public')->delete($visitor->ktp_image_path);
+            }
+            if ($visitor->face_image_path) {
+                Storage::disk('public')->delete($visitor->face_image_path);
+            }
+
+            $visitor->delete();
+            return response()->json(['message' => 'Visitor deleted']);
+        } catch (\Throwable $e) {
+            Log::error('Visitor delete failed', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+            return response()->json([
+                'message' => 'Internal server error',
+            ], 500);
+        }
+    }
 }

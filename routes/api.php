@@ -120,6 +120,11 @@ Route::middleware(['auth:sanctum', 'role:admin,ga'])->prefix('visitors')->group(
     Route::get('/stats', [VisitorController::class, 'stats']);
     Route::post('/', [VisitorController::class, 'store']);
     Route::get('/{id}', [VisitorController::class, 'show']);
+    Route::put('/{id}', [VisitorController::class, 'update']);
+    Route::patch('/{id}', [VisitorController::class, 'update']);
+    // Allow form-data POST for update to avoid multipart PUT/PATCH issues
+    Route::post('/{id}', [VisitorController::class, 'update']);
+    Route::delete('/{id}', [VisitorController::class, 'destroy']);
     Route::post('/{id}/check-in', [VisitorController::class, 'checkIn']);
     Route::post('/{id}/check-out', [VisitorController::class, 'checkOut']);
 });
