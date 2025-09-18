@@ -75,4 +75,27 @@ class UserController extends Controller
     {
         return response()->json($request->user());
     }
+
+    // Admin: new users per month/year
+    public function stats()
+    {
+        $monthly = \DB::table('users')
+            ->selectRaw('strftime("%Y-%m", created_at) as ym, COUNT(*) as total')
+            ->groupByRaw('strftime("%Y-%m", created_at)')
+            ->orderByRaw('ym DESC')
+            ->limit(12)
+            ->get();
+
+        $yearly = \DB::table('users')
+            ->selectRaw('strftime("%Y", created_at) as y, COUNT(*) as total')
+            ->groupByRaw('strftime("%Y", created_at)')
+            ->orderByRaw('y DESC')
+            ->limit(5)
+            ->get();
+
+        return response()->json([
+            'monthly' => $monthly,
+            'yearly' => $yearly,
+        ]);
+    }
 }

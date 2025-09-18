@@ -17,6 +17,33 @@ class AssetController extends Controller
         return response()->json($assets);
     }
 
+    // Admin: asset statistics
+    public function stats()
+    {
+        $byCategory = \DB::table('assets')
+            ->selectRaw('category, COUNT(*) as total')
+            ->groupBy('category')
+            ->get();
+
+        $byStatus = \DB::table('assets')
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->get();
+
+        $timeline = \DB::table('assets')
+            ->selectRaw('strftime("%Y-%m", created_at) as ym, COUNT(*) as total')
+            ->groupByRaw('strftime("%Y-%m", created_at)')
+            ->orderByRaw('ym DESC')
+            ->limit(12)
+            ->get();
+
+        return response()->json([
+            'by_category' => $byCategory,
+            'by_status' => $byStatus,
+            'timeline' => $timeline,
+        ]);
+    }
+
     /**
      * Show the form for creating a new resource.
      */

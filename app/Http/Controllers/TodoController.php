@@ -82,6 +82,47 @@ class TodoController extends Controller
         return TodoResource::collection($todos);
     }
 
+    // User: personal todo statistics
+    public function statsUser(Request $request)
+    {
+        $userId = $request->user()->id;
+        $daily = \DB::table('todos')
+            ->selectRaw('DATE(created_at) as date, COUNT(*) as total, SUM(CASE WHEN status = "completed" THEN 1 ELSE 0 END) as completed')
+            ->where('user_id', $userId)
+            ->groupByRaw('DATE(created_at)')
+            ->orderByRaw('DATE(created_at) DESC')
+            ->limit(30)
+            ->get();
+
+        $monthly = \DB::table('todos')
+            ->selectRaw('strftime("%Y-%m", created_at) as ym, COUNT(*) as total, SUM(CASE WHEN status = "completed" THEN 1 ELSE 0 END) as completed')
+            ->where('user_id', $userId)
+            ->groupByRaw('strftime("%Y-%m", created_at)')
+            ->orderByRaw('ym DESC')
+            ->limit(12)
+            ->get();
+
+        $yearly = \DB::table('todos')
+            ->selectRaw('strftime("%Y", created_at) as y, COUNT(*) as total, SUM(CASE WHEN status = "completed" THEN 1 ELSE 0 END) as completed')
+            ->where('user_id', $userId)
+            ->groupByRaw('strftime("%Y", created_at)')
+            ->orderByRaw('y DESC')
+            ->limit(5)
+            ->get();
+
+        $avgDuration = \DB::table('todos')
+            ->where('user_id', $userId)
+            ->whereNotNull('total_work_time')
+            ->avg('total_work_time');
+
+        return response()->json([
+            'daily' => $daily,
+            'monthly' => $monthly,
+            'yearly' => $yearly,
+            'avg_duration_minutes' => $avgDuration ? round($avgDuration, 2) : 0,
+        ]);
+    }
+
     // GA/Admin: list all todos (optional filter by user_id)
     public function indexAll(Request $request)
     {
@@ -110,6 +151,54 @@ class TodoController extends Controller
         }
 
         return TodoResource::collection($todos);
+    }
+
+    // Admin/GA: global todo statistics
+    public function statsGlobal(Request $request)
+    {
+        $daily = \DB::table('todos')
+            ->selectRaw('DATE(created_at) as date, COUNT(*) as total, SUM(CASE WHEN status = "completed" THEN 1 ELSE 0 END) as completed')
+            ->groupByRaw('DATE(created_at)')
+            ->orderByRaw('DATE(created_at) DESC')
+            ->limit(30)
+            ->get();
+
+        $monthly = \DB::table('todos')
+            ->selectRaw('strftime("%Y-%m", created_at) as ym, COUNT(*) as total, SUM(CASE WHEN status = "completed" THEN 1 ELSE 0 END) as completed')
+            ->groupByRaw('strftime("%Y-%m", created_at)')
+            ->orderByRaw('ym DESC')
+            ->limit(12)
+            ->get();
+
+        $yearly = \DB::table('todos')
+            ->selectRaw('strftime("%Y", created_at) as y, COUNT(*) as total, SUM(CASE WHEN status = "completed" THEN 1 ELSE 0 END) as completed')
+            ->groupByRaw('strftime("%Y", created_at)')
+            ->orderByRaw('y DESC')
+            ->limit(5)
+            ->get();
+
+        $statusDist = \DB::table('todos')
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->get();
+
+        // Ranking users by total warning points
+        $ranking = \DB::table('todo_warnings as tw')
+            ->join('todos as t', 'tw.todo_id', '=', 't.id')
+            ->join('users as u', 't.user_id', '=', 'u.id')
+            ->selectRaw('u.id as user_id, u.name, SUM(tw.points) as points')
+            ->groupBy('u.id', 'u.name')
+            ->orderByDesc('points')
+            ->limit(10)
+            ->get();
+
+        return response()->json([
+            'daily' => $daily,
+            'monthly' => $monthly,
+            'yearly' => $yearly,
+            'status' => $statusDist,
+            'ranking_warning_points' => $ranking,
+        ]);
     }
 
     // GA/Admin: list todos by specific user
@@ -344,11 +433,21 @@ class TodoController extends Controller
         $createdWarning = null;
 
         if ($data['action'] === 'approve') {
+            // compute total work time when approving as completed
+            $now = Carbon::now();
+            $startedAt = $todo->started_at ? Carbon::parse($todo->started_at) : null;
+            $submittedAt = $todo->submitted_at ? Carbon::parse($todo->submitted_at) : null;
+
+            $endForCalc = $submittedAt ?? $now;
+            $totalMinutes = $startedAt ? max(0, $endForCalc->diffInMinutes($startedAt)) : 0;
+
             $todo->update([
                 'status' => 'completed',
                 'notes' => $data['notes'] ?? $todo->notes,
                 'checked_by' => $request->user()->id,
-                'checker_display' => $checkerDisplay
+                'checker_display' => $checkerDisplay,
+                'total_work_time' => $totalMinutes,
+                'total_work_time_formatted' => $this->formatDuration($totalMinutes),
             ]);
 
             $points = (int)($data['warning_points'] ?? 0);

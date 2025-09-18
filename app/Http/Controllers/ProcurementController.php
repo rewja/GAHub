@@ -18,6 +18,47 @@ class ProcurementController extends Controller
         return response()->json($procurements);
     }
 
+    // Procurement stats: counts and total value per month/year, top vendors if available
+    public function stats()
+    {
+        $driver = \DB::connection()->getDriverName();
+        $monthExpr = $driver === 'mysql' ? 'DATE_FORMAT(purchase_date, "%Y-%m")' : 'strftime("%Y-%m", purchase_date)';
+        $yearExpr = $driver === 'mysql' ? 'DATE_FORMAT(purchase_date, "%Y")'   : 'strftime("%Y", purchase_date)';
+
+        $monthlyCount = \DB::table('procurements')
+            ->selectRaw("{$monthExpr} as ym, COUNT(*) as total")
+            ->groupByRaw($monthExpr)
+            ->orderByRaw('ym DESC')
+            ->limit(12)
+            ->get();
+
+        $monthlyAmount = \DB::table('procurements')
+            ->selectRaw("{$monthExpr} as ym, SUM(amount) as total_amount")
+            ->groupByRaw($monthExpr)
+            ->orderByRaw('ym DESC')
+            ->limit(12)
+            ->get();
+
+        $yearlyCount = \DB::table('procurements')
+            ->selectRaw("{$yearExpr} as y, COUNT(*) as total")
+            ->groupByRaw($yearExpr)
+            ->orderByRaw('y DESC')
+            ->limit(5)
+            ->get();
+
+        $yearlyAmount = \DB::table('procurements')
+            ->selectRaw("{$yearExpr} as y, SUM(amount) as total_amount")
+            ->groupByRaw($yearExpr)
+            ->orderByRaw('y DESC')
+            ->limit(5)
+            ->get();
+
+        return response()->json([
+            'monthly' => [ 'count' => $monthlyCount, 'amount' => $monthlyAmount ],
+            'yearly' => [ 'count' => $yearlyCount, 'amount' => $yearlyAmount ],
+        ]);
+    }
+
     /**
      * Show the form for creating a new resource.
      */

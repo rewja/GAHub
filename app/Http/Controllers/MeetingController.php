@@ -17,6 +17,56 @@ class MeetingController extends Controller
         return response()->json($query->latest()->get());
     }
 
+    // Stats: counts per day/month/year, average duration, top rooms
+    public function stats(Request $request)
+    {
+        $isAdmin = $request->user()->role === 'admin';
+        $base = \DB::table('meetings');
+        if (!$isAdmin) {
+            $base->where('user_id', $request->user()->id);
+        }
+
+        $daily = (clone $base)
+            ->selectRaw('DATE(start_time) as date, COUNT(*) as total')
+            ->groupByRaw('DATE(start_time)')
+            ->orderByRaw('DATE(start_time) DESC')
+            ->limit(30)
+            ->get();
+
+        $monthly = (clone $base)
+            ->selectRaw('strftime("%Y-%m", start_time) as ym, COUNT(*) as total')
+            ->groupByRaw('strftime("%Y-%m", start_time)')
+            ->orderByRaw('ym DESC')
+            ->limit(12)
+            ->get();
+
+        $yearly = (clone $base)
+            ->selectRaw('strftime("%Y", start_time) as y, COUNT(*) as total')
+            ->groupByRaw('strftime("%Y", start_time)')
+            ->orderByRaw('y DESC')
+            ->limit(5)
+            ->get();
+
+        $avgDuration = (clone $base)
+            ->selectRaw('AVG((julianday(end_time) - julianday(start_time)) * 24 * 60) as avg_minutes')
+            ->value('avg_minutes');
+
+        $topRooms = (clone $base)
+            ->selectRaw('room_name, COUNT(*) as total')
+            ->groupBy('room_name')
+            ->orderByDesc('total')
+            ->limit(5)
+            ->get();
+
+        return response()->json([
+            'daily' => $daily,
+            'monthly' => $monthly,
+            'yearly' => $yearly,
+            'avg_duration_minutes' => $avgDuration ? round($avgDuration, 2) : 0,
+            'top_rooms' => $topRooms,
+        ]);
+    }
+
     /**
      * Show the form for creating a new resource.
      */
