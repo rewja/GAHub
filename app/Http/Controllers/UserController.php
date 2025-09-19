@@ -79,16 +79,20 @@ class UserController extends Controller
     // Admin: new users per month/year
     public function stats()
     {
+        $driver = \DB::connection()->getDriverName();
+        $monthExpr = $driver === 'mysql' ? 'DATE_FORMAT(created_at, "%Y-%m")' : 'strftime("%Y-%m", created_at)';
+        $yearExpr = $driver === 'mysql' ? 'DATE_FORMAT(created_at, "%Y")' : 'strftime("%Y", created_at)';
+
         $monthly = \DB::table('users')
-            ->selectRaw('strftime("%Y-%m", created_at) as ym, COUNT(*) as total')
-            ->groupByRaw('strftime("%Y-%m", created_at)')
+            ->selectRaw("{$monthExpr} as ym, COUNT(*) as total")
+            ->groupByRaw($monthExpr)
             ->orderByRaw('ym DESC')
             ->limit(12)
             ->get();
 
         $yearly = \DB::table('users')
-            ->selectRaw('strftime("%Y", created_at) as y, COUNT(*) as total')
-            ->groupByRaw('strftime("%Y", created_at)')
+            ->selectRaw("{$yearExpr} as y, COUNT(*) as total")
+            ->groupByRaw($yearExpr)
             ->orderByRaw('y DESC')
             ->limit(5)
             ->get();

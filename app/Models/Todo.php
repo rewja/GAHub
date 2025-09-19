@@ -14,10 +14,13 @@ class Todo extends Model
     protected $fillable = [
         'title',
         'description',
+        'priority',
         'user_id',
         'status',
         'due_date',
         'scheduled_date',
+        'target_start_at',
+        'target_end_at',
         'started_at',
         'submitted_at',
         'total_work_time',

@@ -144,6 +144,8 @@ class TodoController extends Controller
         $avgDuration = \DB::table('todos')
             ->where('user_id', $userId)
             ->whereNotNull('total_work_time')
+            ->where('total_work_time', '>', 0)
+            ->where('total_work_time', '<', 1440) // Less than 24 hours (1440 minutes)
             ->avg('total_work_time');
 
         return response()->json([
@@ -262,8 +264,11 @@ class TodoController extends Controller
         $data = $request->validate([
             'title' => 'required|string|max:150',
             'description' => 'nullable|string',
-            'due_date' => 'nullable|date',
-            'scheduled_date' => 'nullable|date|after_or_equal:today'
+            'priority' => 'nullable|in:low,medium,high',
+            'due_date' => 'nullable|date|after_or_equal:today',
+            'scheduled_date' => 'nullable|date|after_or_equal:today',
+            'target_start_at' => 'nullable|date|after_or_equal:now',
+            'target_end_at' => 'nullable|date|after:target_start_at'
         ]);
 
         $data['user_id'] = $request->user()->id;
@@ -303,11 +308,14 @@ class TodoController extends Controller
         $data = $request->validate([
             'title' => 'sometimes|string|max:150',
             'description' => 'nullable|string',
-                'due_date' => 'nullable|date',
-                'scheduled_date' => 'nullable|date|after_or_equal:today'
-            ]);
+            'priority' => 'nullable|in:low,medium,high',
+            'due_date' => 'nullable|date|after_or_equal:today',
+            'scheduled_date' => 'nullable|date|after_or_equal:today',
+            'target_start_at' => 'nullable|date|after_or_equal:now',
+            'target_end_at' => 'nullable|date|after:target_start_at'
+        ]);
 
-            foreach (['title','description','due_date','scheduled_date'] as $key) {
+            foreach (['title','description','priority','due_date','scheduled_date','target_start_at','target_end_at'] as $key) {
                 if (array_key_exists($key, $data)) {
                     $todo->$key = $data[$key];
                 }
@@ -603,6 +611,12 @@ class TodoController extends Controller
         $createdWarning = null;
 
         if ($data['action'] === 'approve') {
+            // Calculate total work time if not already set
+            $totalMinutes = $todo->total_work_time;
+            if (!$totalMinutes && $todo->started_at && $todo->submitted_at) {
+                $totalMinutes = Carbon::parse($todo->started_at)->diffInMinutes(Carbon::parse($todo->submitted_at));
+            }
+
             $todo->update([
                 'status' => 'completed',
                 'notes' => $data['notes'] ?? $todo->notes,

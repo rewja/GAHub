@@ -10,7 +10,7 @@ class MeetingController extends Controller
     // List all meetings for authenticated user (or all for admin)
     public function index(Request $request)
     {
-        $query = Meeting::query();
+        $query = Meeting::with('user');
         if ($request->user()->role !== 'admin') {
             $query->where('user_id', $request->user()->id);
         }
@@ -93,7 +93,7 @@ class MeetingController extends Controller
         $data = $request->validate([
             'room_name' => 'required|string|max:100',
             'agenda' => 'required|string',
-            'start_time' => 'required|date',
+            'start_time' => 'required|date|after_or_equal:now',
             'end_time' => 'required|date|after:start_time',
         ]);
 
@@ -107,9 +107,15 @@ class MeetingController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Meeting $meeting)
+    public function show(Request $request, Meeting $meeting)
     {
-        //
+        // Check if user has access to this meeting
+        if ($request->user()->role !== 'admin' && $meeting->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        
+        $meeting->load('user');
+        return response()->json($meeting);
     }
 
     /**
@@ -158,6 +164,13 @@ class MeetingController extends Controller
      */
     public function destroy(Meeting $meeting)
     {
-        //
+        // Only creator or admin can delete
+        // Note: route model binding provides $meeting
+        // We will authorize using same rule as other actions
+        request()->user()->role === 'admin' || $meeting->user_id === request()->user()->id
+            ?: abort(response()->json(['message' => 'Unauthorized'], 403));
+
+        $meeting->delete();
+        return response()->json(['message' => 'Meeting deleted']);
     }
 }

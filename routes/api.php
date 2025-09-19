@@ -93,14 +93,23 @@ Route::middleware(['auth:sanctum', 'role:procurement'])->prefix('procurements')-
     Route::get('/', [ProcurementController::class, 'index']);
     Route::post('/', [ProcurementController::class, 'store']);
     Route::get('/stats', [ProcurementController::class, 'stats']);
+    // Approved requests for procurement to process
+    Route::get('/approved-requests', [RequestItemController::class, 'index'])->middleware('role:admin,procurement');
 });
 
 // ---------------- ASSETS ----------------
-Route::middleware(['auth:sanctum', 'role:admin'])->prefix('assets')->group(function () {
-    Route::get('/', [AssetController::class, 'index']);
-    Route::get('/stats', [AssetController::class, 'stats']);
-    Route::post('/', [AssetController::class, 'store']);
-    Route::patch('/{id}/status', [AssetController::class, 'updateStatus']);
+// Allow admin and procurement to read assets; only admin can create/update admin status
+Route::middleware(['auth:sanctum'])->prefix('assets')->group(function () {
+    Route::get('/', [AssetController::class, 'index'])->middleware('role:admin,procurement');
+    Route::get('/stats', [AssetController::class, 'stats'])->middleware('role:admin,procurement');
+    Route::post('/', [AssetController::class, 'store'])->middleware('role:admin');
+    Route::patch('/{id}/status', [AssetController::class, 'updateStatus'])->middleware('role:admin');
+});
+
+// User: manage own assets
+Route::middleware(['auth:sanctum', 'role:user'])->prefix('assets')->group(function () {
+    Route::get('/mine', [AssetController::class, 'mine']);
+    Route::patch('/{id}/user-status', [AssetController::class, 'updateUserStatus']);
 });
 
 // ---------------- MEETINGS ----------------
@@ -108,10 +117,12 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('assets')->group(funct
 Route::middleware('auth:sanctum')->prefix('meetings')->group(function () {
     Route::get('/', [MeetingController::class, 'index']);
     Route::get('/stats', [MeetingController::class, 'stats']);
+    Route::get('/{id}', [MeetingController::class, 'show']);
     Route::post('/', [MeetingController::class, 'store']);
     Route::patch('/{id}/start', [MeetingController::class, 'start']);
     Route::patch('/{id}/end', [MeetingController::class, 'end']);
     Route::patch('/{id}/force-end', [MeetingController::class, 'forceEnd'])->middleware('role:admin');
+    Route::delete('/{meeting}', [MeetingController::class, 'destroy']);
 });
 
 // ---------------- VISITORS ----------------

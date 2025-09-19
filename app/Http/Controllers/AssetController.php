@@ -30,9 +30,12 @@ class AssetController extends Controller
             ->groupBy('status')
             ->get();
 
+        $driver = \DB::connection()->getDriverName();
+        $monthExpr = $driver === 'mysql' ? 'DATE_FORMAT(created_at, "%Y-%m")' : 'strftime("%Y-%m", created_at)';
+
         $timeline = \DB::table('assets')
-            ->selectRaw('strftime("%Y-%m", created_at) as ym, COUNT(*) as total')
-            ->groupByRaw('strftime("%Y-%m", created_at)')
+            ->selectRaw("{$monthExpr} as ym, COUNT(*) as total")
+            ->groupByRaw($monthExpr)
             ->orderByRaw('ym DESC')
             ->limit(12)
             ->get();
@@ -112,5 +115,57 @@ class AssetController extends Controller
     public function destroy(Asset $asset)
     {
         //
+    }
+
+    // User: list own assets
+    public function mine(Request $request)
+    {
+        // Filter assets by the related request's owner since assets table has no user_id column
+        $assets = Asset::with(['request', 'procurement'])
+            ->whereHas('request', function ($q) use ($request) {
+                $q->where('user_id', $request->user()->id);
+            })
+            ->latest()
+            ->get();
+        return response()->json($assets);
+    }
+
+    // User: update asset status (received, not_received, needs_repair, needs_replacement)
+    public function updateUserStatus(Request $request, $id)
+    {
+        $asset = Asset::whereHas('request', function ($q) use ($request) {
+                $q->where('user_id', $request->user()->id);
+            })->findOrFail($id);
+        
+        $data = $request->validate([
+            'status' => 'required|in:received,not_received,needs_repair,needs_replacement',
+            'receipt_proof' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            'repair_proof' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+            'notes' => 'nullable|string',
+        ]);
+
+        $updateData = [
+            'status' => $data['status'],
+            'user_notes' => $data['notes'] ?? null,
+        ];
+
+        // Handle file uploads
+        if ($request->hasFile('receipt_proof')) {
+            $file = $request->file('receipt_proof');
+            $filename = 'receipt_' . $asset->id . '_' . time() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('asset-proofs', $filename, 'public');
+            $updateData['receipt_proof_path'] = $path;
+        }
+
+        if ($request->hasFile('repair_proof')) {
+            $file = $request->file('repair_proof');
+            $filename = 'repair_' . $asset->id . '_' . time() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs('asset-proofs', $filename, 'public');
+            $updateData['repair_proof_path'] = $path;
+        }
+
+        $asset->update($updateData);
+
+        return response()->json(['message' => 'Asset status updated', 'asset' => $asset]);
     }
 }

@@ -29,9 +29,11 @@ class TodoResource extends JsonResource
         $evidenceFiles = [];
         if ($this->evidence_paths && is_array($this->evidence_paths)) {
             foreach ($this->evidence_paths as $path) {
+                $publicPath = Storage::url($path); // e.g. /storage/...
+                $absoluteUrl = rtrim($request->getSchemeAndHttpHost(), '/') . $publicPath;
                 $evidenceFiles[] = [
-                    'path' => Storage::url($path),
-                    'url' => url(Storage::url($path)),
+                    'path' => $publicPath,
+                    'url' => $absoluteUrl,
                     'exists' => Storage::disk('public')->exists($path),
                     'name' => pathinfo($path, PATHINFO_FILENAME)
                 ];
@@ -39,7 +41,7 @@ class TodoResource extends JsonResource
         } elseif ($this->evidence_path) {
             // Fallback to single file for backward compatibility
             $publicPath = Storage::url($this->evidence_path);
-            $absoluteUrl = url($publicPath);
+            $absoluteUrl = rtrim($request->getSchemeAndHttpHost(), '/') . $publicPath;
             $evidenceName = pathinfo($this->evidence_path, PATHINFO_FILENAME);
 
             $evidenceFiles[] = [
@@ -72,17 +74,26 @@ class TodoResource extends JsonResource
             'user_id' => $this->user_id,
             'title' => $this->title,
             'description' => $this->description,
+            'priority' => $this->priority,
             'status' => $this->status,
             'checked_by' => $checkerDisplay,
             'checker_display' => $checkerDisplay,
             'notes' => $this->notes,
             'due_date' => $this->due_date,
             'scheduled_date' => $this->scheduled_date,
+            'target_start_at' => $formatJakarta($this->target_start_at),
+            'target_end_at' => $formatJakarta($this->target_end_at),
             'started_at' => $formatJakarta($this->started_at),
             'submitted_at' => $formatJakarta($this->submitted_at),
+            // Raw ISO timestamps for form editing
+            'target_start_at_raw' => $this->target_start_at ? (\Carbon\Carbon::parse($this->target_start_at))->toISOString() : null,
+            'target_end_at_raw' => $this->target_end_at ? (\Carbon\Carbon::parse($this->target_end_at))->toISOString() : null,
+            'started_at_raw' => $this->started_at ? (\Carbon\Carbon::parse($this->started_at))->toISOString() : null,
+            'submitted_at_raw' => $this->submitted_at ? (\Carbon\Carbon::parse($this->submitted_at))->toISOString() : null,
             // Expose only formatted duration (replace raw field)
             'total_work_time' => $this->total_work_time_formatted,
             'created_at' => $this->created_at->timezone('Asia/Jakarta')->locale('id')->translatedFormat('l, d F Y H:i:s'),
+            'formatted_created_at' => $this->created_at->timezone('Asia/Jakarta')->locale('id')->translatedFormat('l, d F Y H:i:s'),
             'evidence_files' => $evidenceFiles,
         ];
 

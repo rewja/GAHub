@@ -38,6 +38,10 @@ class VisitorController extends Controller
     public function store(Request $request)
     {
         try {
+            // Normalize non-file inputs for file fields so nullable|image doesn't throw
+            if (!$request->hasFile('ktp_image')) { $request->request->remove('ktp_image'); }
+            if (!$request->hasFile('face_image')) { $request->request->remove('face_image'); }
+
             $data = $request->validate([
                 'name' => 'required|string|max:150',
                 'meet_with' => 'required|string|max:150',
@@ -248,6 +252,10 @@ class VisitorController extends Controller
     {
         try {
             $visitor = Visitor::findOrFail($id);
+
+            // Normalize non-file inputs for file fields so nullable|image doesn't throw
+            if (!$request->hasFile('ktp_image')) { $request->request->remove('ktp_image'); }
+            if (!$request->hasFile('face_image')) { $request->request->remove('face_image'); }
 
             $data = $request->validate([
                 'name' => 'sometimes|required|string|max:150',

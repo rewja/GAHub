@@ -20,6 +20,8 @@ class RequestItemController extends Controller
         $data = $request->validate([
             'item_name' => 'required|string|max:200',
             'quantity' => 'required|integer|min:1',
+            'estimated_cost' => 'nullable|numeric|min:0',
+            'category' => 'nullable|string|max:100',
             'reason' => 'nullable|string',
         ]);
 
@@ -41,6 +43,8 @@ class RequestItemController extends Controller
         $data = $request->validate([
             'item_name' => 'sometimes|required|string|max:200',
             'quantity' => 'sometimes|required|integer|min:1',
+            'estimated_cost' => 'nullable|numeric|min:0',
+            'category' => 'nullable|string|max:100',
             'reason' => 'nullable|string',
         ]);
 
@@ -148,6 +152,15 @@ class RequestItemController extends Controller
         $req->update([
             'status' => 'approved',
             'ga_note' => $request->ga_note ?? null,
+        ]);
+
+        // Create asset entry when approved - align with assets table schema
+        \App\Models\Asset::create([
+            'request_items_id' => $req->id,
+            'asset_code' => 'AST-' . str_pad($id, 6, '0', STR_PAD_LEFT),
+            'category' => $req->category ?? 'General',
+            'status' => 'not_received',
+            'notes' => null,
         ]);
 
         return response()->json(['message' => 'Request approved', 'request' => $req]);
