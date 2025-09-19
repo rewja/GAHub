@@ -28,7 +28,9 @@ class UserController extends Controller
             'name' => 'required|string|max:100',
             'email' => 'required|email|unique:users',
             'password' => 'required|string|min:6',
-            'role' => 'required|in:user,admin,procurement'
+            'role' => 'required|in:user,admin,procurement',
+            'department' => 'nullable|string|max:100',
+            'position' => 'nullable|string|max:100',
         ]);
 
         $data['password'] = Hash::make($data['password']);
@@ -47,7 +49,9 @@ class UserController extends Controller
             'name' => 'sometimes|string|max:100',
             'email' => 'sometimes|email|unique:users,email,' . $user->id,
             'password' => 'nullable|string|min:6',
-            'role' => 'sometimes|in:user,admin,procurement'
+            'role' => 'sometimes|in:user,admin,procurement',
+            'department' => 'nullable|string|max:100',
+            'position' => 'nullable|string|max:100',
         ]);
 
         if (!empty($data['password'])) {

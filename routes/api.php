@@ -31,6 +31,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('users')->group(functi
     Route::patch('/{id}', [UserController::class, 'update']);   // update user
     Route::delete('/{id}', [UserController::class, 'destroy']); // delete user
     Route::get('/stats/global', [UserController::class, 'stats']); // new users per month/year
+    Route::get('/stats', [UserController::class, 'stats']);        // alias for frontend simplicity
 });
 
 // ---------------- USER PROFILE (self access) ----------------
