@@ -110,7 +110,13 @@ Route::middleware(['auth:sanctum'])->prefix('assets')->group(function () {
 // User: manage own assets
 Route::middleware(['auth:sanctum', 'role:user'])->prefix('assets')->group(function () {
     Route::get('/mine', [AssetController::class, 'mine']);
+});
+
+// User and Procurement: update asset status
+Route::middleware(['auth:sanctum', 'role:user,procurement'])->prefix('assets')->group(function () {
     Route::patch('/{id}/user-status', [AssetController::class, 'updateUserStatus']);
+    // Allow form-data POST for user status update to avoid multipart PATCH issues
+    Route::post('/{id}/user-status', [AssetController::class, 'updateUserStatus']);
 });
 
 // ---------------- MEETINGS ----------------
@@ -120,6 +126,7 @@ Route::middleware('auth:sanctum')->prefix('meetings')->group(function () {
     Route::get('/stats', [MeetingController::class, 'stats']);
     Route::get('/{id}', [MeetingController::class, 'show']);
     Route::post('/', [MeetingController::class, 'store']);
+    Route::patch('/{id}', [MeetingController::class, 'update']);
     Route::patch('/{id}/start', [MeetingController::class, 'start']);
     Route::patch('/{id}/end', [MeetingController::class, 'end']);
     Route::patch('/{id}/force-end', [MeetingController::class, 'forceEnd'])->middleware('role:admin');

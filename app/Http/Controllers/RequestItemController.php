@@ -10,7 +10,17 @@ class RequestItemController extends Controller
     // User: list own requests
     public function mine(Request $request)
     {
-        $items = RequestItem::where('user_id', $request->user()->id)->latest()->get();
+        $items = RequestItem::with('assets')
+            ->where('user_id', $request->user()->id)
+            ->latest()
+            ->get();
+
+        // If any related asset has been received, reflect it on request status for UI consistency
+        foreach ($items as $item) {
+            if ($item->assets && $item->assets->contains(fn($a) => $a->status === 'received')) {
+                $item->status = 'received';
+            }
+        }
         return response()->json($items);
     }
 
@@ -55,7 +65,13 @@ class RequestItemController extends Controller
     // GA: list all requests
     public function index()
     {
-        return response()->json(RequestItem::with('user')->get());
+        $items = RequestItem::with(['user', 'assets'])->latest()->get();
+        foreach ($items as $item) {
+            if ($item->assets && $item->assets->contains(fn($a) => $a->status === 'received')) {
+                $item->status = 'received';
+            }
+        }
+        return response()->json($items);
     }
 
     // User: statistics (counts per day/month/year and status distribution)
@@ -149,8 +165,9 @@ class RequestItemController extends Controller
     public function approve(Request $request, $id)
     {
         $req = RequestItem::findOrFail($id);
+        // Move request into procurement process upon approval
         $req->update([
-            'status' => 'approved',
+            'status' => 'procurement',
             'ga_note' => $request->ga_note ?? null,
         ]);
 
@@ -158,8 +175,10 @@ class RequestItemController extends Controller
         \App\Models\Asset::create([
             'request_items_id' => $req->id,
             'asset_code' => 'AST-' . str_pad($id, 6, '0', STR_PAD_LEFT),
+            // Category follows the request's category automatically
             'category' => $req->category ?? 'General',
-            'status' => 'not_received',
+            // Asset enters procurement process first
+            'status' => 'procurement',
             'notes' => null,
         ]);
 

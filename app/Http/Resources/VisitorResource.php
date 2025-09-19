@@ -32,7 +32,9 @@ class VisitorResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'sequence' => $this->sequence,
             'meet_with' => $this->meet_with,
+            'person_to_meet' => $this->person_to_meet, // Legacy field for compatibility
             'purpose' => $this->purpose,
             'origin' => $this->origin,
             // visit_time uses same style as todos' formatted duration

@@ -18,12 +18,12 @@ class RequestItem extends Model
     // Relasi: Request bisa menghasilkan banyak Asset
     public function assets()
     {
-        return $this->hasMany(Asset::class);
+        return $this->hasMany(Asset::class, 'request_items_id');
     }
 
     // Request bisa punya banyak procurement
     public function procurements()
     {
-        return $this->hasMany(Procurement::class);
+        return $this->hasMany(Procurement::class, 'request_items_id');
     }
 }

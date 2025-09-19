@@ -11,9 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->string('department')->nullable()->after('role');
-            $table->string('position')->nullable()->after('department');
+        Schema::table('todos', function (Blueprint $table) {
+            $table->integer('rating')->nullable()->after('total_work_time_formatted')->comment('Performance rating from 0-100');
         });
     }
 
@@ -22,14 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn(['department', 'position']);
+        Schema::table('todos', function (Blueprint $table) {
+            $table->dropColumn('rating');
         });
     }
 };
-
-
-
-
-
-

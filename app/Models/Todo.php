@@ -28,7 +28,8 @@ class Todo extends Model
         'evidence_path',  // Tambahkan ini
         'evidence_paths', // Tambahkan ini untuk multiple files
         'checked_by',
-        'notes'
+        'notes',
+        'rating'
     ];
 
     // Pastikan kolom yang di-append

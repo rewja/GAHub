@@ -597,7 +597,8 @@ class TodoController extends Controller
             'type' => 'required|in:individual,overall',
             'notes' => 'nullable|string|max:500',
             'warning_points' => 'nullable|integer|min:0|max:300',
-            'warning_note' => 'nullable|string|max:500'
+            'warning_note' => 'nullable|string|max:500',
+            'rating' => 'nullable|integer|min:0|max:100'
         ]);
 
         if (!in_array($todo->status, ['checking', 'reworked'])) {
@@ -624,6 +625,7 @@ class TodoController extends Controller
                 'checker_display' => $checkerDisplay,
                 'total_work_time' => $totalMinutes,
                 'total_work_time_formatted' => $this->formatDuration($totalMinutes),
+                'rating' => $data['rating'] ?? null,
             ]);
 
             $points = (int)($data['warning_points'] ?? 0);

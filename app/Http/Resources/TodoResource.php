@@ -92,6 +92,7 @@ class TodoResource extends JsonResource
             'submitted_at_raw' => $this->submitted_at ? (\Carbon\Carbon::parse($this->submitted_at))->toISOString() : null,
             // Expose only formatted duration (replace raw field)
             'total_work_time' => $this->total_work_time_formatted,
+            'rating' => $this->rating,
             'created_at' => $this->created_at->timezone('Asia/Jakarta')->locale('id')->translatedFormat('l, d F Y H:i:s'),
             'formatted_created_at' => $this->created_at->timezone('Asia/Jakarta')->locale('id')->translatedFormat('l, d F Y H:i:s'),
             'evidence_files' => $evidenceFiles,

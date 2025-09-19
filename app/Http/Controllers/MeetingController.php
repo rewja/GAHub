@@ -129,6 +129,22 @@ class MeetingController extends Controller
     /**
      * Update the specified resource in storage.
      */
+    public function update(Request $request, $id)
+    {
+        $meeting = Meeting::findOrFail($id);
+        $this->authorizeUser($request, $meeting);
+        
+        $data = $request->validate([
+            'room_name' => 'required|string|max:100',
+            'agenda' => 'required|string',
+            'start_time' => 'required|date|after_or_equal:now',
+            'end_time' => 'required|date|after:start_time',
+        ]);
+
+        $meeting->update($data);
+        return response()->json(['message' => 'Meeting updated', 'meeting' => $meeting]);
+    }
+
     public function start(Request $request, $id)
     {
         $meeting = Meeting::findOrFail($id);

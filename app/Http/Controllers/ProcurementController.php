@@ -83,10 +83,17 @@ class ProcurementController extends Controller
 
         $procurement = Procurement::create($data);
 
-        // Update related request status to purchased if currently approved
+        // After purchase, mark the related request and its asset as not_received (awaiting user receipt)
         $req = RequestItem::find($data['request_items_id']);
-        if ($req && $req->status !== 'purchased') {
-            $req->update(['status' => 'purchased']);
+        if ($req) {
+            // Request status reflects delivery pending
+            $req->update(['status' => 'not_received']);
+
+            // Update the single related asset (created at approval)
+            $asset = \App\Models\Asset::where('request_items_id', $req->id)->latest()->first();
+            if ($asset) {
+                $asset->update(['status' => 'not_received']);
+            }
         }
 
         return response()->json(['message' => 'Procurement recorded', 'procurement' => $procurement], 201);

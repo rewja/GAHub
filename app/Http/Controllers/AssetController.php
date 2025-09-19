@@ -99,7 +99,7 @@ class AssetController extends Controller
         $asset = Asset::findOrFail($id);
 
         $data = $request->validate([
-            'status' => 'required|in:not_received,received,needs_repair,needs_replacement',
+            'status' => 'required|in:procurement,not_received,received,needs_repair,needs_replacement,repairing,replacing',
             'received_date' => 'nullable|date',
             'notes' => 'nullable|string',
         ]);
@@ -133,12 +133,24 @@ class AssetController extends Controller
     // User: update asset status (received, not_received, needs_repair, needs_replacement)
     public function updateUserStatus(Request $request, $id)
     {
-        $asset = Asset::whereHas('request', function ($q) use ($request) {
-                $q->where('user_id', $request->user()->id);
-            })->findOrFail($id);
+        $currentUser = $request->user();
+        // Allow procurement/admin to update any asset; normal users only their own
+        if (in_array($currentUser->role ?? '', ['procurement', 'admin'])) {
+            $asset = Asset::findOrFail($id);
+        } else {
+            $asset = Asset::whereHas('request', function ($q) use ($request) {
+                    $q->where('user_id', $request->user()->id);
+                })->findOrFail($id);
+        }
         
+        // Validation: end user can set received/not_received/needs_*; procurement can also set repairing/replacing
+        $allowedStatuses = ['received','not_received','needs_repair','needs_replacement'];
+        if (in_array($currentUser->role ?? '', ['procurement', 'admin'])) {
+            $allowedStatuses = array_merge($allowedStatuses, ['repairing','replacing']);
+        }
+
         $data = $request->validate([
-            'status' => 'required|in:received,not_received,needs_repair,needs_replacement',
+            'status' => 'required|in:' . implode(',', $allowedStatuses),
             'receipt_proof' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
             'repair_proof' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
             'notes' => 'nullable|string',
@@ -148,6 +160,11 @@ class AssetController extends Controller
             'status' => $data['status'],
             'user_notes' => $data['notes'] ?? null,
         ];
+
+        // If marking as received by end user, receipt proof is mandatory
+        if (($data['status'] ?? null) === 'received' && !$request->hasFile('receipt_proof') && !in_array($currentUser->role ?? '', ['procurement','admin'])) {
+            return response()->json(['message' => 'Receipt proof is required to mark as received'], 422);
+        }
 
         // Handle file uploads
         if ($request->hasFile('receipt_proof')) {
@@ -166,6 +183,27 @@ class AssetController extends Controller
 
         $asset->update($updateData);
 
-        return response()->json(['message' => 'Asset status updated', 'asset' => $asset]);
+        // If user marks asset as received, align related request status to completed/received
+        if (($updateData['status'] ?? null) === 'received') {
+            $req = $asset->request;
+            if ($req) {
+                // Reflect received state on the request for GA/User views
+                $req->update(['status' => 'received']);
+            }
+        } elseif (($updateData['status'] ?? null) === 'needs_repair' || ($updateData['status'] ?? null) === 'needs_replacement') {
+            // Keep request visible for admin/repair pipeline
+            $req = $asset->request;
+            if ($req) {
+                $req->update(['status' => 'approved']); // show under admin; procurement will see via assets
+            }
+        } elseif (($updateData['status'] ?? null) === 'repairing' || ($updateData['status'] ?? null) === 'replacing') {
+            // Asset is being processed by procurement; reflect on request as not_received during processing
+            $req = $asset->request;
+            if ($req) {
+                $req->update(['status' => 'not_received']);
+            }
+        }
+
+        return response()->json(['message' => 'Asset status updated', 'asset' => $asset->fresh(['request'])]);
     }
 }
